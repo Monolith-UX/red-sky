@@ -2,8 +2,7 @@ import type { MetadataRoute } from "next";
 import { catalogue, released } from "@/lib/catalog";
 import { POLICY_SLUGS, policies } from "@/lib/legal";
 import { byDate } from "@/lib/posts";
-
-const BASE = "https://redskybio.com";
+import { SITE_URL as BASE } from "@/lib/site";
 
 /** The newest date among a set, so an index page changes when anything in it does. */
 const latest = (dates: string[]) => new Date(dates.reduce((a, b) => (a > b ? a : b)));

@@ -1,4 +1,4 @@
-import type { CatalogItem } from "./catalog";
+import type { ReleasedItem } from "./catalog";
 
 /**
  * The certificate of analysis for a lot. Formulas, masses and sequences are
@@ -34,6 +34,8 @@ const OVERRIDES: Record<string, Override> = {
   semax: { sequence: "MEHFPGP" },
   selank: { sequence: "TKPRPGP" },
   dsip: { sequence: "WAGGDASGE" },
+  pinealon: { sequence: "EDR" },
+  vilon: { sequence: "KE" },
   epithalon: { sequence: "AEDG" },
   "thymosin-alpha-1": {
     sequence: "Ac-SDAAVDTSSEITTKDLKEKKEVVEEAEN",
@@ -62,7 +64,10 @@ const OVERRIDES: Record<string, Override> = {
 
 const ANALYSTS = ["J.R.", "M.B.", "P.A."];
 
-function seeded(item: CatalogItem) {
+/** Fixed before any lot exists, so an unreleased sequence can state it too. */
+export const METHOD = "RP-HPLC, C18, gradient, UV 214 nm";
+
+function seeded(item: ReleasedItem) {
   const n = Math.round(item.retention * 1000 + item.purity * 100);
   return (k: number) => {
     const x = Math.sin(n * 12.9898 + k * 78.233) * 43758.5453;
@@ -84,7 +89,7 @@ export type Coa = {
   largestImpurity: string;
 };
 
-export function coaFor(item: CatalogItem): Coa {
+export function coaFor(item: ReleasedItem): Coa {
   const r = seeded(item);
   const o = OVERRIDES[item.slug] ?? {};
 
@@ -97,14 +102,14 @@ export function coaFor(item: CatalogItem): Coa {
   const largest = Math.max(0.05, shortfall * (0.45 + r(2) * 0.3));
 
   return {
-    method: "RP-HPLC, C18, gradient, UV 214 nm",
+    method: METHOD,
     purity: `${item.purity.toFixed(2)}%`,
     retention: `${item.retention.toFixed(1)} min`,
     observed: `${observed.toFixed(2)} Da`,
     theoretical: `${theoretical.toFixed(2)} Da`,
     delta: `${Math.abs(drift).toFixed(2)} Da`,
     salt: o.salt ?? "Trifluoroacetate",
-    appearance: o.appearance ?? "White to off-white lyophilized powder",
+    appearance: o.appearance ?? DEFAULT_APPEARANCE,
     water: `${(2.4 + r(3) * 3.4).toFixed(1)}%`,
     analyst: ANALYSTS[Math.floor(r(4) * ANALYSTS.length)],
     largestImpurity: `${largest.toFixed(2)}% at ${(item.retention - 0.4 - r(5) * 1.4).toFixed(1)} min`,
@@ -112,3 +117,9 @@ export function coaFor(item: CatalogItem): Coa {
 }
 
 export const sequenceFor = (slug: string) => OVERRIDES[slug]?.sequence;
+
+const DEFAULT_APPEARANCE = "White to off-white lyophilized powder";
+
+/** Known before release, so an announced sequence can print it on its label. */
+export const appearanceFor = (item: { slug: string }) =>
+  (OVERRIDES[item.slug]?.appearance ?? DEFAULT_APPEARANCE).toLowerCase();

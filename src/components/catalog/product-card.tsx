@@ -1,39 +1,42 @@
-import Image from "next/image";
 import Link from "next/link";
 import {
   type CatalogItem,
   STOCK_LABEL,
+  canOrder,
   classLabel,
   money,
   shortDate,
 } from "@/lib/catalog";
 import { TRACE_H, TRACE_W, traceFor } from "@/lib/trace";
+import { AddToCartButton } from "@/components/store/add-to-cart";
+import { FavoriteButton } from "@/components/store/favorite-button";
+import { WaitlistControl, waitingFor } from "@/components/store/waitlist";
+import { Vial } from "./vial";
 
 export function ProductCard({ item }: { item: CatalogItem }) {
-  const d = traceFor(item.retention, item.purity);
+  const released = item.purity !== null;
 
   return (
-    <article className="group relative flex flex-col border border-hairline bg-paper transition-colors duration-150 focus-within:border-graphite hover:border-graphite">
+    <article className="group relative flex h-full flex-col border border-hairline bg-paper transition-colors duration-150 focus-within:border-graphite hover:border-graphite">
       {/* Identity strip */}
       <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-2.5">
         <span className="t-label truncate text-graphite">{classLabel(item.klass)}</span>
-        <span className="t-data shrink-0 text-[0.6875rem] text-graphite">{item.lot}</span>
+        <span className="t-data shrink-0 text-[0.6875rem] text-graphite">
+          {item.lot ?? "No lot yet"}
+        </span>
       </div>
 
       {/* The vial */}
       <div className="relative aspect-[5/4] w-full bg-white">
-        <Image
-          src="/img/vial-placeholder.jpg"
-          alt={`Sealed vial of lyophilized ${item.name}.`}
-          fill
-          sizes="(min-width: 1280px) 22vw, (min-width: 768px) 40vw, 90vw"
-          className="object-contain p-3"
-        />
+        <Vial item={item} className="absolute inset-0 h-full w-full p-3" />
         {item.stock !== "in" && (
           <span className="t-label absolute left-3 top-3 bg-ink px-2 py-1 text-paper">
             {STOCK_LABEL[item.stock]}
           </span>
         )}
+        <span className="absolute right-1 top-1 z-20">
+          <FavoriteButton slug={item.slug} name={item.name} />
+        </span>
       </div>
 
       {/* Reading */}
@@ -48,7 +51,7 @@ export function ProductCard({ item }: { item: CatalogItem }) {
             </Link>
           </h3>
           <span className="t-data shrink-0 text-[0.9375rem] font-medium tabular-nums">
-            {item.purity.toFixed(2)}%
+            {released ? `${item.purity.toFixed(2)}%` : <span className="text-graphite">Pending</span>}
           </span>
         </div>
         <p className="t-data mt-1 truncate text-[0.6875rem] text-graphite">
@@ -59,16 +62,33 @@ export function ProductCard({ item }: { item: CatalogItem }) {
           viewBox={`0 0 ${TRACE_W} ${TRACE_H}`}
           className="mt-2 block w-full"
           role="img"
-          aria-label={`Chromatogram for lot ${item.lot}: one principal peak at ${item.retention} minutes.`}
+          aria-label={
+            released
+              ? `Chromatogram for lot ${item.lot}: one principal peak at ${item.retention} minutes.`
+              : `No chromatogram yet: ${item.name} has not been released.`
+          }
         >
-          <path
-            d={d}
-            fill="none"
-            stroke="var(--color-sun)"
-            strokeWidth="1.2"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
+          {released ? (
+            <path
+              d={traceFor(item.retention, item.purity)}
+              fill="none"
+              stroke="var(--color-sun)"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : (
+            <line
+              x1="0"
+              y1={TRACE_H - 9}
+              x2={TRACE_W}
+              y2={TRACE_H - 9}
+              stroke="var(--color-graphite)"
+              strokeWidth="1"
+              strokeDasharray="3 5"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
           <line
             x1="0"
             y1={TRACE_H - 2}
@@ -79,8 +99,12 @@ export function ProductCard({ item }: { item: CatalogItem }) {
             vectorEffect="non-scaling-stroke"
           />
         </svg>
-        <p className="t-data -mt-0.5 text-[0.625rem] text-graphite">
-          RP-HPLC · {item.retention.toFixed(1)} min · released {shortDate(item.released)}
+        <p className="t-data -mt-0.5 truncate text-[0.625rem] text-graphite">
+          {item.released === null
+            ? `Assay pending · ${waitingFor(item).toLowerCase()}`
+            : item.stock === "out"
+              ? `Last lot ${shortDate(item.released)} · ${waitingFor(item).toLowerCase()}`
+              : `RP-HPLC · ${item.retention.toFixed(1)} min · released ${shortDate(item.released)}`}
         </p>
       </div>
 
@@ -95,16 +119,7 @@ export function ProductCard({ item }: { item: CatalogItem }) {
               {money(item.price)}
             </span>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary relative z-10 mt-3 min-h-[2.75rem] w-full"
-          >
-            Add to cart
-            <span className="visually-hidden">
-              {" "}
-              — {item.name}, {item.fill}
-            </span>
-          </button>
+          {canOrder(item) ? <AddToCartButton item={item} /> : <WaitlistControl item={item} />}
         </div>
       </div>
     </article>

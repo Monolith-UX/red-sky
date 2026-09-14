@@ -1,5 +1,5 @@
-import { STOCK_LABEL, type CatalogItem } from "./catalog";
-import { coaFor } from "./coa";
+import { type CatalogItem, type ReleasedItem, shortDate } from "./catalog";
+import { METHOD, coaFor } from "./coa";
 import type { Faq } from "./faqs";
 
 /**
@@ -8,12 +8,20 @@ import type { Faq } from "./faqs";
  * specific to one sequence is added from EXTRA below.
  */
 
-const LEAD: Record<CatalogItem["stock"], string> = {
-  in: "It is in stock. Orders placed before 14:00 Eastern ship the same business day.",
-  low: "Fewer than ten vials remain on this lot, but it is in stock and ships the same business day on orders placed before 14:00 Eastern.",
-  "made-to-order":
-    "This one is synthesized to order rather than held on the shelf. Expect ten to fifteen business days from order to dispatch, and you will get the certificate for your own lot rather than a shared one.",
-};
+function lead(item: ReleasedItem) {
+  switch (item.stock) {
+    case "in":
+      return "It is in stock. Orders placed before 14:00 Eastern ship the same business day.";
+    case "low":
+      return "Fewer than ten vials remain on this lot, but it is in stock and ships the same business day on orders placed before 14:00 Eastern.";
+    case "made-to-order":
+      return "This one is synthesized to order rather than held on the shelf. Expect ten to fifteen business days from order to dispatch, and you will get the certificate for your own lot rather than a shared one.";
+    case "out":
+      return `The last lot has sold through${
+        item.expected ? ` and the next is expected around ${shortDate(item.expected)}` : ""
+      }. Join the waitlist on this page and we will email you once, the day its certificate goes up.`;
+  }
+}
 
 const EXTRA: Record<string, Faq[]> = {
   "ghk-cu": [
@@ -48,14 +56,47 @@ const EXTRA: Record<string, Faq[]> = {
   ],
 };
 
+const noAdvice = (item: CatalogItem): Faq => ({
+  q: `Can you advise on how to use ${item.name}?`,
+  a: `No. ${item.name} is sold for in-vitro laboratory research only. It is not a drug, and we do not give dosing, medical or veterinary guidance of any kind. We are glad to help with solubility, handling, reconstitution and anything on the certificate.`,
+});
+
+/** An announced sequence has no lot, so every answer is about what happens next. */
+function upcomingFaqs(item: CatalogItem & { expected: string }): Faq[] {
+  return [
+    {
+      q: `When will ${item.name} be released?`,
+      a: `The first lot is expected around ${shortDate(item.expected)}. It is released only once it clears the same checks as everything else in the catalogue: HPLC purity above the floor, mass confirmation, and a published certificate. If the lot misses, the date moves; the standard does not.`,
+    },
+    {
+      q: "Can I reserve a vial now?",
+      a: "Not yet, because there is nothing to reserve until a lot clears release. Join the waitlist on this page and we will email you once, on the day the certificate goes up. Leaving the list takes one click.",
+    },
+    {
+      q: "What will its certificate show?",
+      a: `The same fields as every lot we sell: area purity by ${METHOD}, observed mass against the theoretical ${item.mass} Da for ${item.formula}, salt form, water content and the analyst's initials. Nothing is published before the lot exists.`,
+    },
+    {
+      q: "Can I order a different fill or a bulk quantity ahead of release?",
+      a: `Yes, as a custom synthesis, with a certificate issued to your own lot. The catalogue fill will be ${item.fill} per vial; other fills and bulk quantities are quoted within one business day at lab@redskybio.com.`,
+    },
+    noAdvice(item),
+  ];
+}
+
 export function productFaqs(item: CatalogItem): Faq[] {
+  if (item.stock === "upcoming") return [...upcomingFaqs(item), ...(EXTRA[item.slug] ?? [])];
+
   const coa = coaFor(item);
   const appearance = coa.appearance.replace(/^./, (c) => c.toLowerCase());
+  const last = item.stock === "out";
 
   const base: Faq[] = [
     {
-      q: `What purity is the current ${item.name} lot?`,
-      a: `Lot ${item.lot} assayed at ${coa.purity} area purity by reverse-phase HPLC at 214 nm, with the principal peak at ${coa.retention}. The released chromatogram is shown on this page, and the integration report ships with the vial.`,
+      q: `What purity ${last ? "was the last" : "is the current"} ${item.name} lot?`,
+      a: `Lot ${item.lot} assayed at ${coa.purity} area purity by reverse-phase HPLC at 214 nm, with the principal peak at ${coa.retention}. The released chromatogram is shown on this page${
+        last ? "" : ", and the integration report ships with the vial"
+      }.`,
     },
     {
       q: "What is the largest impurity in this lot?",
@@ -70,13 +111,10 @@ export function productFaqs(item: CatalogItem): Faq[] {
       a: `It leaves us as ${appearance}. Hold sealed vials at −20 °C and out of light. Bring a vial to room temperature before breaking the seal so nothing condenses onto the cake, then run diluent slowly down the inside wall and swirl rather than shake — foaming costs you material at the air-water interface.`,
     },
     {
-      q: "How quickly does it ship, and can I order a different fill?",
-      a: `${LEAD[item.stock]} The catalogue fill is ${item.fill} per vial; other fills, bulk quantities and custom synthesis are quoted within one business day at lab@redskybio.com.`,
+      q: last ? "When is it back, and can I order a different fill?" : "How quickly does it ship, and can I order a different fill?",
+      a: `${lead(item)} The catalogue fill is ${item.fill} per vial; other fills, bulk quantities and custom synthesis are quoted within one business day at lab@redskybio.com.`,
     },
-    {
-      q: `Can you advise on how to use ${item.name}?`,
-      a: `No. ${item.name} is sold for in-vitro laboratory research only. It is not a drug, and we do not give dosing, medical or veterinary guidance of any kind. We are glad to help with solubility, handling, reconstitution and anything on the certificate.`,
-    },
+    noAdvice(item),
   ];
 
   return [...base, ...(EXTRA[item.slug] ?? [])];

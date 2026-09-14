@@ -1,26 +1,45 @@
 /**
- * The catalogue. Molecular formulas and monoisotopic masses are real; lots,
- * purities, prices and dates are sample data for the build.
+ * The catalogue. Molecular formulas and average molecular weights are real,
+ * and each one has been recomputed from its sequence; lots, purities, prices
+ * and dates are sample data for the build.
  */
 
-export type StockState = "in" | "low" | "made-to-order";
+export type StockState = "in" | "low" | "out" | "made-to-order" | "upcoming";
 
-export type CatalogItem = {
+type Base = {
   slug: string;
   name: string;
   formula: string;
+  /** Average molecular weight, in Da. */
   mass: string;
   klass: ClassKey;
   fill: string;
   price: number;
-  purity: number;
-  lot: string;
-  released: string;
-  stock: StockState;
   /** Retention time in minutes — also seeds the trace, so every card differs. */
   retention: number;
   note: string;
 };
+
+/** A sequence with at least one released lot, whether or not any is left. */
+export type ReleasedItem = Base & {
+  stock: "in" | "low" | "out" | "made-to-order";
+  purity: number;
+  lot: string;
+  released: string;
+  /** When the next lot is expected, for a sequence that has sold through. */
+  expected?: string;
+};
+
+/** Announced but never released: no lot, no purity, and so no trace to draw. */
+export type UpcomingItem = Base & {
+  stock: "upcoming";
+  purity: null;
+  lot: null;
+  released: null;
+  expected: string;
+};
+
+export type CatalogItem = ReleasedItem | UpcomingItem;
 
 export const CLASSES = [
   { key: "repair", label: "Repair and recovery" },
@@ -39,8 +58,21 @@ export const classLabel = (k: ClassKey) =>
 export const STOCK_LABEL: Record<StockState, string> = {
   in: "In stock",
   low: "Low stock",
+  out: "Out of stock",
   "made-to-order": "Made to order",
+  upcoming: "Coming soon",
 };
+
+export const isReleased = (item: CatalogItem): item is ReleasedItem =>
+  item.stock !== "upcoming";
+
+/** Stocked or synthesized to order: anything a cart can take today. */
+export const canOrder = (item: CatalogItem) =>
+  item.stock === "in" || item.stock === "low" || item.stock === "made-to-order";
+
+/** Nothing to sell yet, so the order control becomes a waitlist. */
+export const canWaitlist = (item: CatalogItem) =>
+  item.stock === "out" || item.stock === "upcoming";
 
 export const catalogue: CatalogItem[] = [
   // ── Repair and recovery ──────────────────────────────────────────────
@@ -92,8 +124,8 @@ export const catalogue: CatalogItem[] = [
   {
     slug: "kpv",
     name: "KPV",
-    formula: "C19H26N4O4",
-    mass: "374.44",
+    formula: "C16H30N4O4",
+    mass: "342.43",
     klass: "repair",
     fill: "10 mg",
     price: 38,
@@ -192,7 +224,8 @@ export const catalogue: CatalogItem[] = [
     purity: 99.02,
     lot: "RS-2548-B",
     released: "2026-06-26",
-    stock: "low",
+    stock: "out",
+    expected: "2026-10-12",
     retention: 13.6,
     note: "GRF (1-29) amide.",
   },
@@ -305,12 +338,28 @@ export const catalogue: CatalogItem[] = [
     retention: 8.6,
     note: "Delta sleep-inducing nonapeptide.",
   },
+  {
+    slug: "pinealon",
+    name: "Pinealon",
+    formula: "C15H26N6O8",
+    mass: "418.40",
+    klass: "neuro",
+    fill: "10 mg",
+    price: 46,
+    purity: null,
+    lot: null,
+    released: null,
+    stock: "upcoming",
+    expected: "2026-10-20",
+    retention: 3.9,
+    note: "Glu-Asp-Arg tripeptide.",
+  },
 
   // ── Longevity and immune ─────────────────────────────────────────────
   {
     slug: "epithalon",
     name: "Epithalon",
-    formula: "C14H22N4O10",
+    formula: "C14H22N4O9",
     mass: "390.35",
     klass: "longevity",
     fill: "10 mg",
@@ -367,6 +416,22 @@ export const catalogue: CatalogItem[] = [
     retention: 2.8,
     note: "Reduced form. Tripeptide thiol.",
   },
+  {
+    slug: "vilon",
+    name: "Vilon",
+    formula: "C11H21N3O5",
+    mass: "275.30",
+    klass: "longevity",
+    fill: "10 mg",
+    price: 39,
+    purity: null,
+    lot: null,
+    released: null,
+    stock: "upcoming",
+    expected: "2026-11-10",
+    retention: 2.2,
+    note: "Lys-Glu dipeptide.",
+  },
 
   // ── Endocrine and pigment ────────────────────────────────────────────
   {
@@ -415,6 +480,11 @@ export const catalogue: CatalogItem[] = [
     note: "Bremelanotide. Melanocortin receptor agonist.",
   },
 ];
+
+/** Every sequence with a lot on record — the ones that have a certificate. */
+export const released = catalogue.filter(isReleased);
+
+export const getItem = (slug: string) => catalogue.find((c) => c.slug === slug);
 
 export const SORTS = [
   { key: "name", label: "Name" },

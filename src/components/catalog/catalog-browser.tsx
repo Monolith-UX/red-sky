@@ -12,7 +12,11 @@ import {
 } from "@/lib/catalog";
 import { ProductCard } from "./product-card";
 
-const STOCKS: StockState[] = ["in", "low", "made-to-order"];
+const STOCKS: StockState[] = ["in", "low", "made-to-order", "out", "upcoming"];
+
+/** Unreleased sequences have no purity or lot date, so they sort after everything that does. */
+const last = (a: number | string | null, b: number | string | null) =>
+  a === null ? (b === null ? 0 : 1) : b === null ? -1 : null;
 
 export function CatalogBrowser() {
   const [query, setQuery] = useState("");
@@ -36,15 +40,17 @@ export function CatalogBrowser() {
       return (
         item.name.toLowerCase().includes(q) ||
         item.formula.toLowerCase().includes(q) ||
-        item.lot.toLowerCase().includes(q) ||
+        (item.lot ?? "").toLowerCase().includes(q) ||
         item.note.toLowerCase().includes(q)
       );
     });
 
     return out.sort((a, b) => {
-      if (sort === "purity") return b.purity - a.purity;
+      if (sort === "purity") return last(a.purity, b.purity) ?? b.purity! - a.purity!;
       if (sort === "price") return a.price - b.price;
-      if (sort === "released") return b.released.localeCompare(a.released);
+      if (sort === "released") {
+        return last(a.released, b.released) ?? b.released!.localeCompare(a.released!);
+      }
       return a.name.localeCompare(b.name);
     });
   }, [query, classes, stocks, sort]);
@@ -220,7 +226,7 @@ export function CatalogBrowser() {
         <p className="mt-10 max-w-[62ch] text-[0.8125rem] leading-relaxed text-graphite">
           Every price is per vial. Bulk quantities and sequences outside this list are
           quoted within one business day — write to{" "}
-          <a href="#newsletter" className="decoration-sun underline-offset-4">
+          <a href="mailto:lab@redskybio.com" className="decoration-sun underline-offset-4">
             lab@redskybio.com
           </a>
           .

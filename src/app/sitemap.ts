@@ -12,7 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/blog`, changeFrequency: "weekly", priority: 0.8 },
     ...catalogue.map((item) => ({
       url: `${BASE}/catalog/${item.slug}`,
-      lastModified: new Date(item.released),
+      ...(item.released ? { lastModified: new Date(item.released) } : {}),
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),

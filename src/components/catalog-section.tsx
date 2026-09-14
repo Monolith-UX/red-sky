@@ -1,11 +1,14 @@
-import Image from "next/image";
 import Link from "next/link";
 import { SectionHeader } from "./section-header";
-import { catalogue, money, shortDate } from "@/lib/catalog";
+import { Vial } from "./catalog/vial";
+import { AddToCartButton } from "./store/add-to-cart";
+import { FavoriteButton } from "./store/favorite-button";
+import { catalogue, money, released, shortDate } from "@/lib/catalog";
 
 export function CatalogSection() {
-  const featured = catalogue.find((c) => c.slug === "bpc-157") ?? catalogue[0];
-  const rest = catalogue.filter((c) => c.slug !== featured.slug).slice(0, 5);
+  // Current lots only: an announced sequence has no purity to put in this table.
+  const featured = released.find((c) => c.slug === "bpc-157") ?? released[0];
+  const rest = released.filter((c) => c.slug !== featured.slug).slice(0, 5);
 
   return (
     <section id="catalog" className="scroll-mt-24 py-24 md:py-32">
@@ -25,13 +28,10 @@ export function CatalogSection() {
             </div>
 
             <div className="relative aspect-[4/3] w-full bg-white">
-              <Image
-                src="/img/vial-placeholder.jpg"
-                alt={`Sealed vial of lyophilized ${featured.name}.`}
-                fill
-                sizes="(min-width: 1024px) 30vw, 92vw"
-                className="object-contain p-4"
-              />
+              <Vial item={featured} className="absolute inset-0 h-full w-full p-4" />
+              <span className="absolute right-1.5 top-1.5">
+                <FavoriteButton slug={featured.slug} name={featured.name} />
+              </span>
             </div>
 
             <div className="flex flex-1 flex-col px-6 pb-7 pt-6">
@@ -61,12 +61,10 @@ export function CatalogSection() {
                 ))}
               </dl>
 
-              <div className="mt-6 flex flex-col gap-2">
-                <button type="button" className="btn btn-primary w-full">
-                  Add to cart
-                </button>
+              <div className="mt-3 flex flex-col gap-2">
+                <AddToCartButton item={featured} />
                 <Link
-                  href={`/catalog/${featured.slug}`}
+                  href={`/catalog/${featured.slug}#certificate`}
                   className="btn btn-ghost w-full"
                 >
                   Read the certificate

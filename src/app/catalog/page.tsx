@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PageMasthead } from "@/components/page-masthead";
 import { CatalogBrowser } from "@/components/catalog/catalog-browser";
-import { CLASSES, catalogue } from "@/lib/catalog";
+import { CLASSES, catalogue, released } from "@/lib/catalog";
 
 export const metadata: Metadata = {
   title: "Catalogue — Red Sky",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default function CatalogPage() {
-  const floor = Math.min(...catalogue.map((c) => c.purity));
+  const floor = Math.min(...released.map((c) => c.purity));
 
   return (
     <>

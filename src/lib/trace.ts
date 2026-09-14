@@ -19,10 +19,19 @@ export const TRACE_H = 64;
 const BASE = 55;
 const TOP = 7;
 
+/**
+ * Where a trace is drawn: its left edge and width, and the y of the peak apex
+ * and of the baseline. The default is the card's 240 × 64 sparkline; larger
+ * frames (the vial label, the hero window) get the same curve, only scaled.
+ */
+export type Frame = { x: number; w: number; top: number; base: number };
+const CARD: Frame = { x: 0, w: TRACE_W, top: TOP, base: BASE };
+
 type Peak = { mu: number; a: number; s: number };
 
-export function traceFor(retention: number, purity: number): string {
+export function traceFor(retention: number, purity: number, frame: Frame = CARD): string {
   const rnd = mulberry(Math.round(retention * 971 + purity * 137));
+  const sy = (frame.base - frame.top) / (BASE - TOP);
 
   // The main peak sits where the sequence actually elutes, mapped into frame.
   const mu = 0.3 + ((retention % 7) / 7) * 0.4;
@@ -52,7 +61,9 @@ export function traceFor(retention: number, purity: number): string {
       y -= p.a * Math.exp(-((t - p.mu) ** 2) / (2 * p.s * p.s));
     }
     y += (rnd() - 0.5) * 0.7; // baseline noise
-    d += `${i === 0 ? "M" : "L"}${(t * TRACE_W).toFixed(1)},${y.toFixed(1)}`;
+    const X = frame.x + t * frame.w;
+    const Y = frame.top + (y - TOP) * sy;
+    d += `${i === 0 ? "M" : "L"}${X.toFixed(1)},${Y.toFixed(1)}`;
   }
   return d;
 }

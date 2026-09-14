@@ -1,18 +1,25 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Faqs } from "@/components/faqs";
 import { LotTrace } from "@/components/catalog/lot-trace";
+import { ProductCard } from "@/components/catalog/product-card";
+import { Vial } from "@/components/catalog/vial";
 import { SectionHeader } from "@/components/section-header";
+import { PurchasePanel } from "@/components/store/add-to-cart";
+import { FavoriteButton } from "@/components/store/favorite-button";
+import { WaitlistControl, waitingFor } from "@/components/store/waitlist";
 import {
+  type CatalogItem,
   STOCK_LABEL,
+  canOrder,
   catalogue,
   classLabel,
+  getItem,
   money,
   shortDate,
 } from "@/lib/catalog";
-import { coaFor, sequenceFor } from "@/lib/coa";
+import { METHOD, appearanceFor, coaFor, sequenceFor } from "@/lib/coa";
 import { productFaqs } from "@/lib/product-faqs";
 
 export function generateStaticParams() {
@@ -25,19 +32,40 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const item = catalogue.find((c) => c.slug === slug);
+  const item = getItem(slug);
   if (!item) return { title: "Sequence not found — Red Sky" };
   return {
     title: `${item.name} — Red Sky`,
-    description: `${item.name}, ${item.formula}, ${item.fill} per vial. Lot ${item.lot} released at ${item.purity.toFixed(2)}% area purity by RP-HPLC.`,
+    description:
+      item.purity === null
+        ? `${item.name}, ${item.formula}, ${item.fill} per vial. Coming soon: first lot expected ${shortDate(item.expected)}. Join the waitlist.`
+        : `${item.name}, ${item.formula}, ${item.fill} per vial. Lot ${item.lot} released at ${item.purity.toFixed(2)}% area purity by RP-HPLC.`,
   };
 }
 
-const SHIPS: Record<string, string> = {
-  in: "Ships the same business day on orders before 14:00 ET.",
-  low: "Fewer than ten vials left on this lot. Ships the same business day.",
-  "made-to-order": "Synthesized to order. Typically 10 to 15 business days.",
+function shipping(item: CatalogItem) {
+  switch (item.stock) {
+    case "in":
+      return "Ships the same business day on orders before 14:00 ET. Vials leave the freezer at −20 °C with a temperature logger in the box.";
+    case "low":
+      return "Fewer than ten vials left on this lot. Ships the same business day, at −20 °C with a temperature logger in the box.";
+    case "made-to-order":
+      return "Synthesized to order, typically 10 to 15 business days, with a certificate for your own lot.";
+    case "out":
+    case "upcoming":
+      return `${waitingFor(item)}. The waitlist gets one email, the day the certificate goes up.`;
+  }
+}
+
+const AVAILABILITY: Record<CatalogItem["stock"], string> = {
+  in: "https://schema.org/InStock",
+  low: "https://schema.org/LimitedAvailability",
+  "made-to-order": "https://schema.org/MadeToOrder",
+  out: "https://schema.org/OutOfStock",
+  upcoming: "https://schema.org/OutOfStock",
 };
+
+const PENDING = "Pending release";
 
 export default async function ProductPage({
   params,
@@ -45,32 +73,49 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const item = catalogue.find((c) => c.slug === slug);
+  const item = getItem(slug);
   if (!item) notFound();
 
-  const coa = coaFor(item);
   const sequence = sequenceFor(item.slug);
   const faqs = productFaqs(item);
+  const appearance = appearanceFor(item);
   const related = catalogue
     .filter((c) => c.klass === item.klass && c.slug !== item.slug)
-    .slice(0, 3);
+    .slice(0, 4);
 
-  const certificate: [string, string][] = [
-    ["Lot number", item.lot],
-    ["Date of analysis", shortDate(item.released)],
-    ["Method", coa.method],
-    ["Area purity", coa.purity],
-    ["Retention time", coa.retention],
-    ["Largest single impurity", coa.largestImpurity],
-    ["Observed mass", coa.observed],
-    ["Theoretical mass", coa.theoretical],
-    ["Mass difference", coa.delta],
-    ["Molecular formula", item.formula],
-    ["Salt form", coa.salt],
-    ["Appearance", coa.appearance],
-    ["Water content (Karl Fischer)", coa.water],
-    ["Analyst", coa.analyst],
-  ];
+  // An announced sequence still has a method, a formula and a theoretical
+  // mass; everything a lot would measure is marked as not yet measured.
+  const certificate: [string, string][] =
+    item.purity === null
+      ? [
+          ["Lot number", "Assigned at synthesis"],
+          ["Date of analysis", PENDING],
+          ["Method", METHOD],
+          ["Area purity", PENDING],
+          ["Observed mass", PENDING],
+          ["Theoretical mass", `${item.mass} Da`],
+          ["Molecular formula", item.formula],
+          ["Water content (Karl Fischer)", PENDING],
+        ]
+      : (() => {
+          const coa = coaFor(item);
+          return [
+            ["Lot number", item.lot],
+            ["Date of analysis", shortDate(item.released)],
+            ["Method", coa.method],
+            ["Area purity", coa.purity],
+            ["Retention time", coa.retention],
+            ["Largest single impurity", coa.largestImpurity],
+            ["Observed mass", coa.observed],
+            ["Theoretical mass", coa.theoretical],
+            ["Mass difference", coa.delta],
+            ["Molecular formula", item.formula],
+            ["Salt form", coa.salt],
+            ["Appearance", coa.appearance],
+            ["Water content (Karl Fischer)", coa.water],
+            ["Analyst", coa.analyst],
+          ];
+        })();
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -79,17 +124,14 @@ export default async function ProductPage({
         "@type": "Product",
         name: item.name,
         description: item.note,
-        sku: item.lot,
+        ...(item.lot ? { sku: item.lot } : {}),
         category: classLabel(item.klass),
         brand: { "@type": "Brand", name: "Red Sky" },
         offers: {
           "@type": "Offer",
           price: item.price.toFixed(2),
           priceCurrency: "USD",
-          availability:
-            item.stock === "made-to-order"
-              ? "https://schema.org/PreOrder"
-              : "https://schema.org/InStock",
+          availability: AVAILABILITY[item.stock],
         },
       },
       {
@@ -143,25 +185,44 @@ export default async function ProductPage({
         <div className="grid12 gap-y-10">
           {/* Specimen */}
           <div className="col-span-12 lg:col-span-6">
-            <div className="border border-hairline bg-white">
+            <div className="relative border border-hairline bg-white">
               <div className="relative aspect-[4/3] w-full">
-                <Image
-                  src="/img/vial-placeholder.jpg"
-                  alt={`Sealed vial of lyophilized ${item.name}, ${item.fill} fill.`}
-                  fill
-                  priority
-                  sizes="(min-width: 1024px) 45vw, 92vw"
-                  className="object-contain p-6"
-                />
+                <Vial item={item} className="absolute inset-0 h-full w-full p-6" />
               </div>
+              {item.stock !== "in" && (
+                <span className="t-label absolute left-4 top-4 bg-ink px-2 py-1 text-paper">
+                  {STOCK_LABEL[item.stock]}
+                </span>
+              )}
             </div>
 
             <div className="mt-5">
-              <LotTrace
-                retention={item.retention}
-                purity={item.purity}
-                lot={item.lot}
-              />
+              {item.purity !== null ? (
+                <LotTrace
+                  retention={item.retention}
+                  purity={item.purity}
+                  lot={item.lot}
+                />
+              ) : (
+                <figure className="border border-hairline bg-paper p-5 md:p-6">
+                  <figcaption className="flex items-baseline justify-between gap-4 border-b border-hairline pb-3">
+                    <span className="t-label text-graphite">Released chromatogram</span>
+                    <span className="t-data text-[0.6875rem] text-graphite">No lot yet</span>
+                  </figcaption>
+                  <div className="relative mt-5 grid h-40 place-items-center md:h-48">
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 bottom-6 border-t border-dashed border-graphite/60"
+                    />
+                    <p className="t-data relative bg-paper px-3 text-[0.75rem] text-graphite">
+                      Assay pending — the trace publishes with the first lot
+                    </p>
+                  </div>
+                  <p className="t-data mt-4 border-t border-hairline pt-3 text-[0.6875rem] leading-relaxed text-graphite">
+                    {METHOD} · {waitingFor(item).toLowerCase()}
+                  </p>
+                </figure>
+              )}
             </div>
           </div>
 
@@ -181,16 +242,24 @@ export default async function ProductPage({
             {/* The argument */}
             <div className="mt-8 flex items-end justify-between gap-6 border-y border-ink py-5">
               <span className="t-label pb-1.5 text-graphite">Area purity</span>
-              <span className="t-metric text-[clamp(2rem,3vw,2.75rem)]">
-                {item.purity.toFixed(2)}%
-              </span>
+              {item.purity !== null ? (
+                <span className="t-metric text-[clamp(2rem,3vw,2.75rem)]">
+                  {item.purity.toFixed(2)}%
+                </span>
+              ) : (
+                <span className="t-data pb-1 text-[1.0625rem] text-graphite">
+                  Measured at release
+                </span>
+              )}
             </div>
 
             <dl className="mt-6 text-[0.875rem]">
               {[
                 ["Fill", `${item.fill} per vial`],
-                ["Lot", item.lot],
-                ["Released", shortDate(item.released)],
+                ["Lot", item.lot ?? "Assigned at synthesis"],
+                item.released === null
+                  ? ["Expected", shortDate(item.expected)]
+                  : [item.stock === "out" ? "Last released" : "Released", shortDate(item.released)],
                 ["Availability", STOCK_LABEL[item.stock]],
               ].map(([k, v]) => (
                 <div
@@ -203,21 +272,24 @@ export default async function ProductPage({
               ))}
             </dl>
 
-            <p className="t-data mt-6 text-[1.75rem] font-medium">{money(item.price)}</p>
-
-            <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
-              <button type="button" className="btn btn-primary flex-1">
-                Add to cart
-              </button>
-              <a href="#certificate" className="btn btn-ghost flex-1">
-                Read the certificate
-              </a>
+            <div className="mt-6 flex items-end justify-between gap-4">
+              <p className="t-data text-[1.75rem] font-medium leading-none">
+                {money(item.price)}
+                <span className="ml-2 text-[0.8125rem] font-normal text-graphite">per vial</span>
+              </p>
+              <FavoriteButton slug={item.slug} name={item.name} variant="detail" />
             </div>
 
-            <p className="mt-4 flex items-start gap-2.5 text-[0.8125rem] leading-relaxed text-graphite">
+            {canOrder(item) ? <PurchasePanel item={item} /> : <WaitlistControl item={item} variant="detail" />}
+
+            <p className="mt-3 flex items-start gap-2.5 text-[0.8125rem] leading-relaxed text-graphite">
               <span className="dot mt-[0.55em]" aria-hidden="true" />
-              {SHIPS[item.stock]} Vials leave the freezer at −20 °C with a temperature
-              logger in the box.
+              <span>
+                {shipping(item)}{" "}
+                <a href="#certificate" className="whitespace-nowrap text-ink decoration-sun underline-offset-4">
+                  {item.purity === null ? "What the certificate will show" : "Read the certificate"}
+                </a>
+              </span>
             </p>
           </div>
         </div>
@@ -231,10 +303,22 @@ export default async function ProductPage({
       >
         <div className="shell">
           <SectionHeader
-            eyebrow={`Certificate of analysis — lot ${item.lot}`}
-            heading="The numbers a stranger could argue with."
+            eyebrow={
+              item.lot === null
+                ? "Certificate of analysis — first lot pending"
+                : `Certificate of analysis — ${item.stock === "out" ? "last lot" : "lot"} ${item.lot}`
+            }
+            heading={
+              item.lot === null
+                ? "What we will measure before it ships."
+                : "The numbers a stranger could argue with."
+            }
             headingId="coa-heading"
-            note="Printed and shipped with the vial. Also downloadable as a signed PDF."
+            note={
+              item.lot === null
+                ? "Published the day the first lot clears release, and not before."
+                : "Printed and shipped with the vial. The integration report is available on request."
+            }
           />
 
           <div className="mt-12 border border-hairline bg-paper">
@@ -249,7 +333,13 @@ export default async function ProductPage({
                   } ${i % 2 === 0 ? "md:border-r" : ""}`}
                 >
                   <dt className="text-[0.875rem] text-graphite">{k}</dt>
-                  <dd className="t-data text-[0.875rem] font-medium">{v}</dd>
+                  <dd
+                    className={`t-data text-[0.875rem] ${
+                      v === PENDING ? "text-graphite" : "font-medium"
+                    }`}
+                  >
+                    {v}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -272,7 +362,10 @@ export default async function ProductPage({
               >
                 the difference is explained here
               </Link>
-              . Net peptide content for this lot is available on request.
+              .{" "}
+              {item.lot === null
+                ? "Net peptide content will be available on request for every lot."
+                : "Net peptide content for this lot is available on request."}
             </p>
           </div>
         </div>
@@ -294,7 +387,7 @@ export default async function ProductPage({
             {[
               {
                 t: "Storage",
-                b: `Hold sealed vials at −20 °C, out of light. ${coa.appearance.replace(/^./, (c) => c.toLowerCase())} at time of release.`,
+                b: `Hold sealed vials at −20 °C, out of light. Supplied as ${appearance}.`,
               },
               {
                 t: "Before opening",
@@ -332,7 +425,11 @@ export default async function ProductPage({
         <div className="shell">
           <SectionHeader
             eyebrow={`Questions — ${item.name}`}
-            heading="What buyers ask before they order this one."
+            heading={
+              item.lot === null
+                ? "What buyers ask before it is released."
+                : "What buyers ask before they order this one."
+            }
             note="Anything outside this goes to lab@redskybio.com, answered within a business day."
           />
           <div className="mt-12 max-w-[64rem]">
@@ -351,35 +448,13 @@ export default async function ProductPage({
               headingId="related-heading"
             />
 
-            <ul role="list" className="mt-10 border-t border-ink">
+            <ul
+              role="list"
+              className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            >
               {related.map((r) => (
                 <li key={r.slug}>
-                  <Link
-                    href={`/catalog/${r.slug}`}
-                    className="group relative grid grid-cols-1 items-center gap-x-4 gap-y-2 border-b border-hairline py-6 no-underline transition-colors duration-150 hover:bg-paper md:grid-cols-[minmax(0,1fr)_7rem_6rem_2rem]"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="absolute left-0 top-0 h-full w-[3px] origin-top scale-y-0 bg-sun transition-transform duration-200 ease-out group-hover:scale-y-100 group-focus-visible:scale-y-100"
-                    />
-                    <span className="md:pl-5">
-                      <span className="t-h3 block">{r.name}</span>
-                      <span className="t-data mt-1 block text-[0.75rem] text-graphite">
-                        {r.formula} · lot {r.lot}
-                      </span>
-                    </span>
-                    <span className="t-data text-[0.9375rem] md:text-right">
-                      {r.purity.toFixed(2)}%
-                    </span>
-                    <span className="t-data text-[0.9375rem] font-medium md:text-right">
-                      {money(r.price)}
-                    </span>
-                    <span className="hidden justify-self-end text-graphite transition-colors duration-150 group-hover:text-sun md:block">
-                      <svg width="16" height="10" viewBox="0 0 16 10" fill="none" aria-hidden="true">
-                        <path d="M0 5h14M10 1l4 4-4 4" stroke="currentColor" strokeWidth="1.3" />
-                      </svg>
-                    </span>
-                  </Link>
+                  <ProductCard item={r} />
                 </li>
               ))}
             </ul>

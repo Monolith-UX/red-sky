@@ -83,7 +83,7 @@ export const policies: Record<PolicySlug, Policy> = {
       { t: "h2", text: "Your rights" },
       {
         t: "p",
-        text: "Depending on where you live, you can ask us for a copy of the data we hold about you, ask us to correct it, ask us to delete it, object to processing, or ask for it in a portable format. Write to privacy@redskybio.com and we will respond within thirty days. We will not charge you for this and we will not make the service worse because you asked.",
+        text: "Depending on where you live, you can ask us for a copy of the data we hold about you, ask us to correct it, ask us to delete it, object to processing, or ask for it in a portable format. If you have an account, the Your data section of the account page does two of these straight away: it downloads everything the account holds as one file, and it closes the account. For anything else, write to privacy@redskybio.com and we will respond within thirty days. We will not charge you for this and we will not make the service worse because you asked.",
       },
       {
         t: "p",

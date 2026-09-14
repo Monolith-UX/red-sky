@@ -6,8 +6,10 @@ import {
   MAX_QUANTITY,
   isWeekday,
   nextDispatch,
+  readAddress,
   todayIso,
   upcomingDispatch,
+  type Address,
   type AvatarType,
   type StandingOrder,
   type Weekday,
@@ -25,17 +27,19 @@ import {
 } from "@/lib/server/auth";
 import {
   changeOrder,
+  closeAccount as dropAccount,
   createUser,
   endOtherSessions,
   findUserByEmail,
   getUser,
   mergeOwner,
   removeAvatar as dropAvatar,
+  saveAddress,
   saveAvatar,
   saveProfile as writeProfile,
   setPasswordHash,
 } from "@/lib/server/store";
-import { readVisitor } from "@/lib/server/visitor";
+import { forgetVisitor, readVisitor } from "@/lib/server/visitor";
 
 /**
  * Every action re-checks who is asking. Rendering a form only for a signed-in
@@ -238,6 +242,62 @@ export async function removeAvatar(): Promise<FormState> {
   await dropAvatar(user.id);
   revalidatePath("/account");
   return { ok: true, message: "Photo removed." };
+}
+
+/* ── Delivery address ──────────────────────────────────────── */
+
+export type AddressState = FormState & { address?: Partial<Address> };
+
+export async function saveDeliveryAddress(_: AddressState, form: FormData): Promise<AddressState> {
+  const user = await currentUser();
+  if (!user) return { error: "Your session has ended. Sign in again to save." };
+
+  const { address, missing } = readAddress(form);
+  if (missing) {
+    return { error: `Add the ${missing.label.toLowerCase()} so the courier can deliver it.`, address };
+  }
+
+  await saveAddress(user.id, address);
+  revalidatePath("/account");
+  return { ok: true, message: "Address saved." };
+}
+
+export async function removeDeliveryAddress(): Promise<FormState> {
+  const user = await requireUser();
+  await saveAddress(user.id, null);
+  revalidatePath("/account");
+  return { ok: true, message: "Address removed." };
+}
+
+/* ── Closing the account ───────────────────────────────────── */
+
+/**
+ * Asks for the password again, so an unattended signed-in browser cannot close
+ * the account. Redirects to the signed-out page with the categories that were
+ * kept — names only, nothing personal in the URL.
+ */
+export async function closeAccount(_: FormState, form: FormData): Promise<FormState> {
+  const user = await currentUser();
+  if (!user) return { error: "Your session has ended. Sign in again to close the account." };
+
+  if (form.get("confirm") !== "on") {
+    return { error: "Tick the box to confirm that you want the account closed." };
+  }
+  if (!allowAttempt(`close:${user.id}`)) {
+    return { error: "Too many attempts. Wait ten minutes and try again." };
+  }
+  const password = typeof form.get("password") === "string" ? String(form.get("password")) : "";
+  const record = await getUser(user.id);
+  if (!(await verifyPassword(password, record?.passwordHash ?? null))) {
+    return { error: "That password is not right. Nothing has been deleted." };
+  }
+
+  const kept = await dropAccount(user.id);
+  if (!kept) return { error: "That account no longer exists." };
+
+  await endSession();
+  await forgetVisitor();
+  redirect(`/account?closed=${kept.join(",") || "none"}`);
 }
 
 /* ── Standing orders ───────────────────────────────────────── */

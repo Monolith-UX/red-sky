@@ -66,7 +66,14 @@ type Db = {
   messages: ContactMessage[];
   stories: Story[];
   subscribers: { email: string; joined: string }[];
+  /**
+   * Order records of closed accounts, held for lot traceability (seven years
+   * from the order date, per the privacy policy) and for nothing else.
+   */
+  retained: Record<string, RetainedRecord>;
 };
+
+export type RetainedRecord = { email: string; closed: string; orders: PlacedOrder[] };
 
 const DIR = path.join(process.cwd(), ".data");
 const FILE = path.join(DIR, "store.json");
@@ -84,6 +91,7 @@ const empty = (): Db => ({
   messages: [],
   stories: [],
   subscribers: [],
+  retained: {},
 });
 
 async function read(): Promise<Db> {
@@ -284,7 +292,8 @@ export function saveProfile(
   });
 }
 
-export function saveAddress(owner: string, address: Address) {
+/** Null removes the saved address; orders already placed keep their own copy. */
+export function saveAddress(owner: string, address: Address | null) {
   return update((db) => {
     db.profiles[owner] = { ...EMPTY_PROFILE, ...db.profiles[owner], address };
   });
@@ -433,6 +442,106 @@ export function endOtherSessions(user: string, keep: string | null) {
       if (s.user === user && hash !== keep) delete db.sessions[hash];
     }
   });
+}
+
+/** Addresses a person has used with us: the sign-in address and the contact email, if different. */
+const emailsOf = (db: Db, user: User) =>
+  new Set([user.email, db.profiles[user.id]?.email].filter(Boolean) as string[]);
+
+/**
+ * Everything held against one account, for the copy the privacy policy
+ * promises. Credentials are left out on purpose: the password and session
+ * hashes are only useful to someone trying to break in.
+ */
+export async function exportOwner(id: string) {
+  const db = await read();
+  const user = db.users[id];
+  if (!user) return null;
+  const emails = emailsOf(db, user);
+  const profile = { ...EMPTY_PROFILE, ...db.profiles[id] };
+  const avatar = await readAvatar(id);
+
+  return {
+    account: { email: user.email, created: user.created },
+    profile: {
+      name: profile.name,
+      organisation: profile.organisation,
+      email: profile.email,
+      address: profile.address,
+      avatar: avatar ? `data:${avatar.type};base64,${Buffer.from(avatar.bytes).toString("base64")}` : null,
+    },
+    sessions: Object.values(db.sessions)
+      .filter((s) => s.user === id)
+      .map(({ persistent, created, expires }) => ({ persistent, created, expires })),
+    favorites: Object.entries(db.favorites)
+      .filter(([, ids]) => ids.includes(id))
+      .map(([slug]) => slug),
+    waitlists: Object.entries(db.waitlist).flatMap(([slug, entries]) =>
+      entries.filter((e) => e.visitor === id).map(({ email, joined }) => ({ slug, email, joined })),
+    ),
+    cart: db.carts[id] ?? [],
+    orders: db.placed[id] ?? [],
+    standingOrders: db.orders[id] ?? [],
+    stories: db.stories
+      .filter((s) => s.owner === id)
+      .map(({ owner: _owner, ...story }) => story),
+    messages: db.messages.filter((m) => emails.has(m.email)),
+    mailingList: db.subscribers.filter((s) => emails.has(s.email)),
+  };
+}
+
+export type Kept = "orders" | "stories" | "messages" | "list";
+
+/**
+ * Closes an account in one write. Deleted: the sign-in, every session, the
+ * profile, photo and saved address, favorites, waitlists, the cart, standing
+ * orders and unpublished stories. Kept, and returned so the page can say so:
+ * placed orders (lot traceability), published stories (until a take-down is
+ * asked for), correspondence, and mailing-list membership — each as the
+ * privacy policy describes.
+ */
+export async function closeAccount(id: string): Promise<Kept[] | null> {
+  const { avatar } = await getProfile(id);
+  const kept = await update((db): Kept[] | null => {
+    const user = db.users[id];
+    if (!user) return null;
+    const emails = emailsOf(db, user);
+    const kept: Kept[] = [];
+
+    const placed = db.placed[id] ?? [];
+    if (placed.length) {
+      db.retained[id] = { email: user.email, closed: new Date().toISOString(), orders: placed };
+      kept.push("orders");
+    }
+
+    delete db.users[id];
+    for (const [hash, s] of Object.entries(db.sessions)) {
+      if (s.user === id) delete db.sessions[hash];
+    }
+    for (const [slug, ids] of Object.entries(db.favorites)) {
+      if (ids.includes(id)) db.favorites[slug] = ids.filter((v) => v !== id);
+    }
+    for (const [slug, entries] of Object.entries(db.waitlist)) {
+      db.waitlist[slug] = entries.filter((e) => e.visitor !== id);
+    }
+    delete db.profiles[id];
+    delete db.carts[id];
+    delete db.placed[id];
+    delete db.orders[id];
+
+    db.stories = db.stories.filter((s) => s.owner !== id || s.status === "published");
+    for (const s of db.stories) {
+      if (s.owner === id) {
+        s.owner = null;
+        if (!kept.includes("stories")) kept.push("stories");
+      }
+    }
+    if (db.messages.some((m) => emails.has(m.email))) kept.push("messages");
+    if (db.subscribers.some((s) => emails.has(s.email))) kept.push("list");
+    return kept;
+  });
+  if (kept && avatar) await rm(avatarFile(id, avatar.type), { force: true });
+  return kept;
 }
 
 export function subscribe(email: string) {

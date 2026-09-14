@@ -3,6 +3,8 @@
  * the client components, so the rules for dates and limits live in one place.
  */
 
+import { clean } from "./forms";
+
 export type AvatarType = "image/png" | "image/jpeg" | "image/webp";
 
 export type Address = {
@@ -28,6 +30,18 @@ export const ADDRESS_FIELDS: { key: keyof Address; label: string; required: bool
   { key: "country", label: "Country", required: true, autoComplete: "country-name", max: 60 },
   { key: "phone", label: "Phone for the courier", required: false, autoComplete: "tel", max: 30 },
 ];
+
+/**
+ * Reads an address posted as `address.<field>`, the shape both the checkout
+ * and the account page send. `missing` is the first required field left empty.
+ */
+export function readAddress(form: FormData) {
+  const address = Object.fromEntries(
+    ADDRESS_FIELDS.map((f) => [f.key, clean(form.get(`address.${f.key}`), f.max)]),
+  ) as Address;
+  const missing = ADDRESS_FIELDS.find((f) => f.required && !address[f.key]) ?? null;
+  return { address, missing };
+}
 
 export type Profile = {
   name: string;

@@ -31,6 +31,11 @@ export async function ensureVisitor() {
   return id;
 }
 
+/** Drops the guest id, so a closed account leaves nothing tying this browser to it. */
+export async function forgetVisitor() {
+  (await cookies()).delete(COOKIE);
+}
+
 /** A stable small number for drawing a default avatar, without exposing the id. */
 export function seedOf(visitor: string | null) {
   if (!visitor) return 0;

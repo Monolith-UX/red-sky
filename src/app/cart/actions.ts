@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  ADDRESS_FIELDS,
   isWeekday,
   nextDispatch,
+  readAddress,
   todayIso,
   type Address,
   type CartLine,
@@ -12,7 +12,6 @@ import {
   type Weekday,
 } from "@/lib/account";
 import { canOrder, getItem } from "@/lib/catalog";
-import { clean } from "@/lib/forms";
 import { currentUser } from "@/lib/server/auth";
 import { getCart, placeOrder as recordOrder, saveAddress } from "@/lib/server/store";
 import { savingFor, stackSavings } from "@/lib/stacks";
@@ -46,10 +45,7 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   const user = await currentUser();
   if (!user) return { error: "Sign in to place the order." };
 
-  const address = Object.fromEntries(
-    ADDRESS_FIELDS.map((f) => [f.key, clean(form.get(`address.${f.key}`), f.max)]),
-  ) as Address;
-  const missing = ADDRESS_FIELDS.find((f) => f.required && !address[f.key]);
+  const { address, missing } = readAddress(form);
   if (missing) {
     return { error: `Add the ${missing.label.toLowerCase()} so the courier can deliver it.`, address };
   }

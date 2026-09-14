@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { placeOrder, type CheckoutState } from "@/app/cart/actions";
+import { AddressBlock } from "@/components/account/address-block";
 import { Vial } from "@/components/catalog/vial";
 import { Check, Field, FormMessage } from "@/components/forms/fields";
 import {
@@ -238,17 +239,7 @@ export function CartView({
                 <div className="clear-both">
                   {address && !editing ? (
                     <>
-                      <address className="text-[0.875rem] not-italic leading-relaxed">
-                        {address.recipient}
-                        {address.organisation && <><br />{address.organisation}</>}
-                        <br />
-                        {address.line1}
-                        {address.line2 && `, ${address.line2}`}
-                        <br />
-                        {address.city}, {address.region} {address.postal}
-                        <br />
-                        {address.country}
-                      </address>
+                      <AddressBlock address={address} className="text-[0.875rem]" />
                       {ADDRESS_FIELDS.map((f) => (
                         <input key={f.key} type="hidden" name={`address.${f.key}`} value={address[f.key]} />
                       ))}

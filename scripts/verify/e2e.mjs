@@ -108,6 +108,24 @@ await page.type('input[name="replacement"]', "an even better passphrase");
 await page.click('[data-e2e="pw"]');
 check("password changes", await waitFor(page, bodyHas("Password changed")));
 
+await tag(page, buttonByText("Change address"), "addr");
+await page.click('[data-e2e="addr"]');
+await waitFor(page, `document.querySelector('#profile input[name="address.line1"]')`);
+await page.eval(`document.querySelector('#profile input[name="address.line1"]').value = ""`);
+await page.type('#profile input[name="address.line1"]', "2 Bench Road");
+await tag(page, buttonByText("Save address"), "addr-save");
+await page.click('[data-e2e="addr-save"]');
+check("address edits on the account page", await waitFor(page, bodyHas("Address saved") + " && " + bodyHas("2 Bench Road") + " && !document.querySelector('#profile input[name=\"address.line1\"]')", 10000));
+
+const exported = await page.eval(`fetch("/api/account/export").then(async r => ({ status: r.status, disposition: r.headers.get("content-disposition"), text: await r.text() }))`);
+const copy = exported.status === 200 ? JSON.parse(exported.text) : null;
+check(
+  "data export is the account's own, without hashes",
+  copy?.account.email === email && copy.orders.length === 1 && copy.profile.address.line1 === "2 Bench Road" &&
+    /attachment/.test(exported.disposition ?? "") && !/passwordHash|scrypt\$/.test(exported.text),
+  `status ${exported.status}`,
+);
+
 /* ── Stories ───────────────────────────────────────────────── */
 await page.goto("/stories", 3000);
 check("stories page shows the template until approval", await page.eval(bodyHas("Template — how a published story is set")));
@@ -200,6 +218,27 @@ await page.viewport(390, 844, true);
 await page.goto("/blog/reconstitution", 2000);
 check("mobile contents list above the article", await page.eval(`!!document.querySelector("main details summary") && getComputedStyle(document.querySelector("main details")).display !== "none"`));
 await page.shot("e2e2-mobile-toc", { clip: { x: 0, y: 0, width: 390, height: 1200 } });
+
+/* ── Closing the account ───────────────────────────────────── */
+await page.viewport(1280, 900);
+await page.goto("/account", 3000);
+await page.click("#data summary");
+await page.type('#data input[name="password"]', "not the password");
+await page.click('#data input[name="confirm"]');
+await tag(page, `document.querySelector('#data button[type="submit"]')`, "close");
+await page.click('[data-e2e="close"]');
+check("closing refuses a wrong password", await waitFor(page, bodyHas("Nothing has been deleted")));
+// React resets the form after each action, so the box is ticked again.
+await page.type('#data input[name="password"]', "an even better passphrase");
+await page.eval(`document.querySelector('#data input[name="confirm"]').checked || document.querySelector('#data input[name="confirm"]').click()`);
+await page.click('[data-e2e="close"]');
+check("closing lands on the notice with what was kept", await waitFor(page, bodyHas("The account is closed") + " && " + bodyHas("placed orders, held for seven years"), 15000));
+await page.shot("e2e2-account-closed", { clip: { x: 0, y: 0, width: 1280, height: 900 } });
+const after = JSON.parse(readFileSync(STORE, "utf8"));
+const gone = !Object.values(after.users).some((u) => u.email === email);
+const retained = Object.values(after.retained ?? {}).find((r) => r.email === email);
+check("store deletes the account and keeps only its orders", gone && retained?.orders.length === 1 && !Object.values(after.sessions).some((s) => !after.users[s.user]));
+check("export refuses once closed", (await page.eval(`fetch("/api/account/export").then(r => r.status)`)) === 401);
 
 check("no page or console errors", page.errors.length === 0, page.errors.slice(0, 4).join(" // "));
 await page.close();

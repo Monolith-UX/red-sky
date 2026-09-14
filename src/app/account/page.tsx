@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import {
+  AddressForm,
+  CloseAccountForm,
   PasswordForm,
   ProfileForm,
   SavedGrid,
@@ -14,6 +16,7 @@ import { StandingOrders } from "@/components/account/standing-orders";
 import { SectionHeader } from "@/components/section-header";
 import { TocAside } from "@/components/toc-aside";
 import { todayIso } from "@/lib/account";
+import type { Kept } from "@/lib/server/store";
 import { getItem, money, shortDate } from "@/lib/catalog";
 import { currentUser, sessionInfo } from "@/lib/server/auth";
 import {
@@ -37,14 +40,28 @@ function safeNext(value: string | string[] | undefined) {
   return v.startsWith("/") && !v.startsWith("//") ? v : "/account";
 }
 
+/** What closing an account left behind, in the words the privacy policy uses. */
+const KEPT: Record<Kept, string> = {
+  orders: "Your placed orders, held for seven years from each order date for lot traceability and nothing else.",
+  stories: "Your published client stories, until you ask for one to be taken down.",
+  messages: "Messages you sent us, for three years.",
+  list: "Your place on the lot release mailing list, until you unsubscribe from any release note.",
+};
+
+/** Null when the page was not reached by closing an account; otherwise the kept categories. */
+function keptFrom(value: string | string[] | undefined): Kept[] | null {
+  if (typeof value !== "string") return null;
+  return value.split(",").filter((k): k is Kept => k in KEPT);
+}
+
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string | string[] }>;
+  searchParams: Promise<{ next?: string | string[]; closed?: string | string[] }>;
 }) {
-  const [user, { next }] = await Promise.all([currentUser(), searchParams]);
+  const [user, { next, closed }] = await Promise.all([currentUser(), searchParams]);
 
-  if (!user) return <SignedOut next={safeNext(next)} />;
+  if (!user) return <SignedOut next={safeNext(next)} closed={keptFrom(closed)} />;
 
   const [profile, favorites, waitlist, orders, placed, session] = await Promise.all([
     getProfile(user.id),
@@ -183,30 +200,44 @@ export default async function AccountPage({
 
               <div className="mt-14 max-w-[44rem] border-t border-hairline pt-8">
                 <h3 className="t-h3">Delivery address</h3>
-                {profile.address ? (
-                  <address className="t-data mt-4 text-[0.875rem] not-italic leading-relaxed">
-                    {profile.address.recipient}
-                    {profile.address.organisation && <><br />{profile.address.organisation}</>}
-                    <br />
-                    {profile.address.line1}
-                    {profile.address.line2 && `, ${profile.address.line2}`}
-                    <br />
-                    {profile.address.city}, {profile.address.region} {profile.address.postal}
-                    <br />
-                    {profile.address.country}
-                  </address>
-                ) : (
-                  <p className="mt-3 text-[0.9375rem] text-graphite">None saved yet.</p>
-                )}
-                <p className="mt-3 text-[0.8125rem] text-graphite">
-                  Saved from checkout, and changed there too — standing orders ship to the address on the order that opened them.
+                <p className="mt-3 max-w-[62ch] text-[0.8125rem] leading-relaxed text-graphite">
+                  Checkout starts from this address. Standing orders already open ship to the
+                  address on the order that opened them.
                 </p>
+                <div className="mt-6">
+                  <AddressForm address={profile.address} />
+                </div>
               </div>
 
               <div className="mt-14 max-w-[44rem] border-t border-hairline pt-8">
                 <h3 className="t-h3">Password</h3>
                 <div className="mt-6">
                   <PasswordForm />
+                </div>
+              </div>
+            </section>
+
+            <section id="data" aria-labelledby="data-heading" className="scroll-mt-24">
+              <SectionHeader
+                eyebrow="Your data — a copy, or closing"
+                heading="What we hold, and how to take it back."
+                headingId="data-heading"
+              />
+              <div className="mt-10 max-w-[44rem]">
+                <div className="flex flex-col gap-x-8 gap-y-5 border-t border-ink pt-7 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h3 className="t-h3">Download a copy</h3>
+                    <p className="mt-3 max-w-[48ch] text-[0.9375rem] leading-relaxed text-graphite">
+                      One JSON file with your profile, photo, favorites, waitlists, cart, orders,
+                      standing orders, stories and messages. Password hashes are left out.
+                    </p>
+                  </div>
+                  <a href="/api/account/export" download className="btn btn-ghost shrink-0">
+                    Download data
+                  </a>
+                </div>
+                <div className="mt-10">
+                  <CloseAccountForm activeOrders={active.length} placedOrders={placed.length} />
                 </div>
               </div>
             </section>
@@ -221,6 +252,7 @@ export default async function AccountPage({
                 { id: "orders", label: "Orders" },
                 { id: "waitlist", label: "Waitlist" },
                 { id: "profile", label: "Profile" },
+                { id: "data", label: "Your data" },
               ]}
             />
           </div>
@@ -230,10 +262,39 @@ export default async function AccountPage({
   );
 }
 
-function SignedOut({ next }: { next: string }) {
+function SignedOut({ next, closed }: { next: string; closed: Kept[] | null }) {
   return (
     <>
       <SessionSync signedIn={false} />
+
+      {closed && (
+        <section aria-labelledby="closed-heading" className="border-b border-hairline bg-bench">
+          <div className="shell py-10 md:py-12">
+            <div role="status" className="max-w-[64ch] border-l-2 border-ink pl-5">
+              <h2 id="closed-heading" className="t-h3">
+                The account is closed.
+              </h2>
+              <p className="mt-3 text-[0.9375rem] leading-relaxed">
+                Your sign-in, profile, photo, address, favorites, waitlists, cart and standing
+                orders have been deleted, and this browser has been signed out.
+              </p>
+              {closed.length > 0 && (
+                <>
+                  <p className="mt-4 text-[0.9375rem] leading-relaxed">What we still hold, and why:</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-[0.9375rem] leading-relaxed text-graphite">
+                    {closed.map((k) => (
+                      <li key={k}>{KEPT[k]}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              <p className="mt-4 text-[0.8125rem] text-graphite">
+                Questions about any of it go to privacy@redskybio.com.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="border-b border-hairline bg-paper">
         <div className="shell pb-12 pt-12 md:pb-16 md:pt-16">

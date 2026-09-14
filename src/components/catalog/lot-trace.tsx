@@ -16,7 +16,7 @@ export function LotTrace({
   return (
     <figure className="border border-hairline bg-paper p-5 md:p-6">
       <figcaption className="flex items-baseline justify-between gap-4 border-b border-hairline pb-3">
-        <span className="t-label text-graphite">Released chromatogram</span>
+        <span className="t-label text-graphite">Trace drawn from the certificate</span>
         <span className="t-data text-[0.6875rem] text-graphite">{lot}</span>
       </figcaption>
 

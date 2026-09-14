@@ -6,7 +6,7 @@ import { catalogSlides } from "@/lib/content";
 export const metadata: Metadata = {
   title: "Catalogue — Red Sky",
   description:
-    "Every sequence Red Sky holds, with its lot number, area purity, retention time and released chromatogram.",
+    "Every sequence Red Sky holds, with its lot number, area purity, retention time and a trace drawn from its certificate.",
 };
 
 export default function CatalogPage() {

@@ -212,7 +212,7 @@ export default async function ProductPage({
               ) : (
                 <figure className="border border-hairline bg-paper p-5 md:p-6">
                   <figcaption className="flex items-baseline justify-between gap-4 border-b border-hairline pb-3">
-                    <span className="t-label text-graphite">Released chromatogram</span>
+                    <span className="t-label text-graphite">Chromatogram</span>
                     <span className="t-data text-[0.6875rem] text-graphite">No lot yet</span>
                   </figcaption>
                   <div className="relative mt-5 grid h-40 place-items-center md:h-48">

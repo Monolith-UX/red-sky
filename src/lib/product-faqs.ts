@@ -94,7 +94,7 @@ export function productFaqs(item: CatalogItem): Faq[] {
   const base: Faq[] = [
     {
       q: `What purity ${last ? "was the last" : "is the current"} ${item.name} lot?`,
-      a: `Lot ${item.lot} assayed at ${coa.purity} area purity by reverse-phase HPLC at 214 nm, with the principal peak at ${coa.retention}. The released chromatogram is shown on this page${
+      a: `Lot ${item.lot} assayed at ${coa.purity} area purity by reverse-phase HPLC at 214 nm, with the principal peak at ${coa.retention}. A trace drawn from those figures is shown on this page${
         last ? "" : ", and the integration report ships with the vial"
       }.`,
     },

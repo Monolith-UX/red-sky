@@ -18,7 +18,7 @@ export default function CertificatesPage() {
       <PageMasthead
         eyebrow="Certificates — every lot on record"
         heading="Look a lot up by the number on the vial."
-        lead="Every certificate we have published, searchable by lot number, sequence or formula. Each one opens on its lot page with the released chromatogram and all fourteen fields."
+        lead="Every certificate we have published, searchable by lot number, sequence or formula. Each one opens on its lot page with all fourteen fields and a trace drawn from them."
         stats={[
           { label: "Published", value: String(released.length) },
           { label: "Newest", value: shortDate(newest.released) },

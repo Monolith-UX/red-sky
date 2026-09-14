@@ -194,6 +194,7 @@ check("lot lookup shows the certificate summary", await waitFor(page, `document.
 await page.shot("e2e2-certificates", { clip: { x: 0, y: 500, width: 1280, height: 900 } });
 
 await page.click('button[aria-label="Open the bench assistant"]');
+await waitFor(page, `document.querySelector("#bench-input")`);
 await page.type("#bench-input", "What is lot RS-2601-B?");
 await page.key("Enter", "Enter", 13);
 check("assistant answers a lot lookup from data", await waitFor(page, `[...document.querySelectorAll('[role="dialog"] p')].some(p => p.textContent.includes("99.47%") && p.textContent.includes("Read its certificate"))`));

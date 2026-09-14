@@ -71,7 +71,7 @@ export function BenchDock() {
   const chips = CHIPS;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex justify-end">
+    <div className="bench-dock pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex justify-end">
       <div className="pointer-events-none flex w-full max-w-[26rem] flex-col items-end gap-3 p-4 sm:p-6">
         {/* Panel */}
         {open && (

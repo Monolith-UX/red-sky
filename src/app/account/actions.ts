@@ -77,7 +77,7 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   if (!isEmail(email) || !password) {
     return { error: "Enter the email address and password for the account.", fields };
   }
-  if (!allowAttempt(`sign-in:${email}`)) {
+  if (!(await allowAttempt(`sign-in:${email}`))) {
     return {
       error: "Too many attempts for that address. Wait ten minutes, or write to lab@redskybio.com.",
       fields,
@@ -90,7 +90,7 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
     return { error: "That email and password do not match an account.", fields };
   }
 
-  clearAttempts(`sign-in:${email}`);
+  await clearAttempts(`sign-in:${email}`);
   await adoptGuest(user.id);
   await startSession(user.id, keep);
   redirect(safeNext(form.get("next")));
@@ -119,7 +119,7 @@ export async function signUp(_: FormState, form: FormData): Promise<FormState> {
       fields,
     };
   }
-  if (!allowAttempt(`sign-up:${email}`, 3)) {
+  if (!(await allowAttempt(`sign-up:${email}`, 3))) {
     return { error: "Too many attempts for that address. Wait ten minutes and try again.", fields };
   }
 
@@ -158,7 +158,7 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   if (replacement.length > 200) {
     return { error: "That password is longer than we accept. Keep it under 200 characters." };
   }
-  if (!allowAttempt(`password:${user.id}`)) {
+  if (!(await allowAttempt(`password:${user.id}`))) {
     return { error: "Too many attempts. Wait ten minutes and try again." };
   }
 
@@ -283,7 +283,7 @@ export async function closeAccount(_: FormState, form: FormData): Promise<FormSt
   if (form.get("confirm") !== "on") {
     return { error: "Tick the box to confirm that you want the account closed." };
   }
-  if (!allowAttempt(`close:${user.id}`)) {
+  if (!(await allowAttempt(`close:${user.id}`))) {
     return { error: "Too many attempts. Wait ten minutes and try again." };
   }
   const password = typeof form.get("password") === "string" ? String(form.get("password")) : "";

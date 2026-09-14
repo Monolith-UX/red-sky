@@ -97,10 +97,17 @@ sequences print ASSAY PENDING and no trace.
   `mass` field is average MW, not monoisotopic.
 
 ## The personal layer
-- `lib/server/store.ts` — the only persistence: one JSON file in `.data/`, atomic writes,
-  queued updates. Favorites, waitlists, carts, profiles, avatars, placed and standing
-  orders, users, hashed sessions, stories, subscribers, contact messages. **Swap it for
-  a database before any serverless deploy.**
+- `lib/server/store.ts` — the only persistence, choosing between two implementations of
+  the same functions (type-checked against each other): `store-supabase.ts` (Postgres
+  plus a private `avatars` Storage bucket; production) when `SUPABASE_URL` and
+  `SUPABASE_SECRET_KEY` are set, else `store-file.ts` (one JSON file in `.data/`; local
+  development and the e2e suite). `RED_SKY_STORE=file|supabase` overrides.
+- Schema: `supabase/migrations/`. Server-only access with the secret key; RLS on every
+  table with no policies, grants revoked from anon/authenticated. Multi-step writes
+  (guest merge, placing an order, closing an account) are Postgres functions, so each
+  is one transaction. Sign-in and form rate limits live in the `attempts` table so they
+  hold across serverless instances. Sign-in stays the site's own (scrypt + hashed
+  session tokens); Supabase Auth is not used.
 - Your data (account page): `/api/account/export` downloads everything the account holds
   as JSON, minus password and session hashes. Closing the account needs the password,
   deletes what the privacy draft says it will, moves placed orders to `retained` (lot
@@ -127,7 +134,7 @@ Everything else is state feedback under 180ms (the heart's fill pop is 180ms).
 - Payments are not connected; checkout records orders and says so on the page.
 - No email provider: waitlist notices, password resets, contact forwarding, story
   confirmation and newsletter double opt-in are all stubs. Pages say messages are stored.
-- `.data/` JSON store will not persist on serverless hosting.
+- Production data lives in Supabase once its keys are set in Netlify (see `.env.example`).
 - Lots, purities, prices, dates and the 412-shipments figure are sample data.
 - Policy pages are drafts, updated to describe the site truthfully; not reviewed by counsel.
 

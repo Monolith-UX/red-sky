@@ -2,6 +2,8 @@ import "server-only";
 import { createHash, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from "node:crypto";
 import { cookies } from "next/headers";
 import {
+  allowAttempt as recordAttempt,
+  clearAttempts as forgetAttempts,
   deleteSession,
   getSession,
   getUser,
@@ -58,22 +60,14 @@ export async function verifyPassword(password: string, stored: string | null) {
 
 /* ── Attempts ──────────────────────────────────────────────── */
 
-const g = globalThis as unknown as { __redSkyAttempts?: Map<string, number[]> };
-const attempts = (g.__redSkyAttempts ??= new Map<string, number[]>());
+/**
+ * Five tries per key per ten minutes, by default. Kept in the store, so on
+ * serverless hosting every instance counts against the same limit.
+ */
+export const allowAttempt = (key: string, limit = 5, windowMs = 10 * 60 * 1000) =>
+  recordAttempt(key, limit, windowMs);
 
-/** Five tries per address per ten minutes. In memory, so it resets with the server. */
-export function allowAttempt(key: string, limit = 5, windowMs = 10 * 60 * 1000) {
-  const now = Date.now();
-  const recent = (attempts.get(key) ?? []).filter((t) => now - t < windowMs);
-  if (recent.length >= limit) {
-    attempts.set(key, recent);
-    return false;
-  }
-  attempts.set(key, [...recent, now]);
-  return true;
-}
-
-export const clearAttempts = (key: string) => attempts.delete(key);
+export const clearAttempts = (key: string) => forgetAttempts(key);
 
 /* ── Sessions ──────────────────────────────────────────────── */
 

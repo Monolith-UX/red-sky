@@ -42,7 +42,7 @@ export async function sendMessage(_: ContactState, form: FormData): Promise<Cont
   if (fields.message.length < 10) {
     return { error: "Say a little more in the message — a sentence is enough.", fields };
   }
-  if (!allowAttempt(`contact:${fields.email}`, 5, 60 * 60 * 1000)) {
+  if (!(await allowAttempt(`contact:${fields.email}`, 5, 60 * 60 * 1000))) {
     return {
       error: `That is a lot of messages in an hour. Write to ${channel.email} directly instead.`,
       fields,

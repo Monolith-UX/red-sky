@@ -1,11 +1,19 @@
 // End-to-end checks across the storefront. Run: BASE_URL=http://localhost:PORT node scripts/verify/e2e.mjs
 // Start from an empty .data/: the stories check expects nothing published yet.
+// Against a server using Supabase, add E2E_STORE=supabase: the checks that look inside the
+// store then query Supabase with the keys in .env.local, and the run deletes its own rows after.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { launch } from "./cdp.mjs";
 
 const SCRATCH = fileURLToPath(new URL("./out", import.meta.url));
 const STORE = fileURLToPath(new URL("../../.data/store.json", import.meta.url));
+let sb = null;
+if (process.env.E2E_STORE === "supabase") {
+  try { process.loadEnvFile(fileURLToPath(new URL("../../.env.local", import.meta.url))); } catch {}
+  const { createClient } = await import("@supabase/supabase-js");
+  sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
+}
 rmSync(`${SCRATCH}/cdp-e2e3`, { recursive: true, force: true });
 mkdirSync(SCRATCH, { recursive: true });
 
@@ -161,12 +169,17 @@ await page.goto("/stories/review", 2500);
 check("review queue refuses non-moderators", await page.eval(bodyHas("This queue is for moderators")));
 
 // Stand in for a moderator: approve the clean story directly in the store.
-const db = JSON.parse(readFileSync(STORE, "utf8"));
-const clean = db.stories.find((s) => s.title === "Three lots, one column, no surprises" && s.status === "pending");
-if (clean) {
-  clean.status = "published";
-  clean.published = new Date().toISOString();
-  writeFileSync(STORE, JSON.stringify(db, null, 2));
+if (sb) {
+  await sb.from("stories").update({ status: "published", published: new Date().toISOString() })
+    .eq("title", "Three lots, one column, no surprises").eq("status", "pending").eq("email", email);
+} else {
+  const db = JSON.parse(readFileSync(STORE, "utf8"));
+  const clean = db.stories.find((s) => s.title === "Three lots, one column, no surprises" && s.status === "pending");
+  if (clean) {
+    clean.status = "published";
+    clean.published = new Date().toISOString();
+    writeFileSync(STORE, JSON.stringify(db, null, 2));
+  }
 }
 await page.goto("/stories", 3000);
 check("an approved story renders with its verified mark", await page.eval(bodyHas("Three lots, one column, no surprises") + " && " + bodyHas("Verified order")));
@@ -236,11 +249,32 @@ await page.eval(`document.querySelector('#data input[name="confirm"]').checked |
 await page.click('[data-e2e="close"]');
 check("closing lands on the notice with what was kept", await waitFor(page, bodyHas("The account is closed") + " && " + bodyHas("placed orders, held for seven years"), 15000));
 await page.shot("e2e2-account-closed", { clip: { x: 0, y: 0, width: 1280, height: 900 } });
-const after = JSON.parse(readFileSync(STORE, "utf8"));
-const gone = !Object.values(after.users).some((u) => u.email === email);
-const retained = Object.values(after.retained ?? {}).find((r) => r.email === email);
-check("store deletes the account and keeps only its orders", gone && retained?.orders.length === 1 && !Object.values(after.sessions).some((s) => !after.users[s.user]));
+if (sb) {
+  const users = (await sb.from("users").select("id").eq("email", email)).data ?? [];
+  const kept = (await sb.from("retained").select("owner").eq("email", email)).data ?? [];
+  const orders = kept.length ? (await sb.from("placed_orders").select("ref").eq("owner", kept[0].owner)).data ?? [] : [];
+  const leftovers = kept.length
+    ? await Promise.all(["profiles", "carts", "favorites", "waitlist", "standing_orders"].map(async (t) =>
+        (await sb.from(t).select("owner").eq("owner", kept[0].owner)).data?.length ?? 0))
+    : [1];
+  check("store deletes the account and keeps only its orders", users.length === 0 && orders.length === 1 && leftovers.every((n) => n === 0), `orders ${orders.length}, leftovers ${leftovers.join(",")}`);
+} else {
+  const after = JSON.parse(readFileSync(STORE, "utf8"));
+  const gone = !Object.values(after.users).some((u) => u.email === email);
+  const retained = Object.values(after.retained ?? {}).find((r) => r.email === email);
+  check("store deletes the account and keeps only its orders", gone && retained?.orders.length === 1 && !Object.values(after.sessions).some((s) => !after.users[s.user]));
+}
 check("export refuses once closed", (await page.eval(`fetch("/api/account/export").then(r => r.status)`)) === 401);
+
+// Supabase is shared, so the run removes what it wrote: its stories, retained orders, list entry and attempts.
+if (sb) {
+  const kept = (await sb.from("retained").select("owner").eq("email", email)).data ?? [];
+  for (const { owner } of kept) await sb.from("placed_orders").delete().eq("owner", owner);
+  await sb.from("retained").delete().eq("email", email);
+  await sb.from("stories").delete().eq("email", email);
+  await sb.from("subscribers").delete().like("email", "releases+%@lab.org");
+  await sb.from("attempts").delete().or("key.like.%e2e2+%,key.like.%releases+%");
+}
 
 check("no page or console errors", page.errors.length === 0, page.errors.slice(0, 4).join(" // "));
 await page.close();

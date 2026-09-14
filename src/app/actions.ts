@@ -15,7 +15,7 @@ export async function subscribeToReleases(_: SubscribeState, form: FormData): Pr
   if (!isEmail(email)) {
     return { status: "error", message: "That address is missing an @ or a domain. Check it and try again." };
   }
-  if (!allowAttempt(`subscribe:${email}`, 5, 60 * 60 * 1000)) {
+  if (!(await allowAttempt(`subscribe:${email}`, 5, 60 * 60 * 1000))) {
     return { status: "error", message: "That address has been tried several times. Wait a little and try again." };
   }
   const added = await subscribe(email);

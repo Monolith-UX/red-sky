@@ -201,11 +201,11 @@ export default async function AccountPage({
               <div className="mt-14 max-w-[44rem] border-t border-hairline pt-8">
                 <h3 className="t-h3">Delivery address</h3>
                 <p className="mt-3 max-w-[62ch] text-[0.8125rem] leading-relaxed text-graphite">
-                  Checkout starts from this address. Standing orders already open ship to the
-                  address on the order that opened them.
+                  Checkout starts from this address. Each standing order keeps its own; changing
+                  this one offers to move them too.
                 </p>
                 <div className="mt-6">
-                  <AddressForm address={profile.address} />
+                  <AddressForm address={profile.address} standing={orders.length} />
                 </div>
               </div>
 

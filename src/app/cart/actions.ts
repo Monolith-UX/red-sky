@@ -94,6 +94,7 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
         status: "active",
         nextDispatch: firstMonthly!,
         created: today,
+        address,
       }))
     : [];
 

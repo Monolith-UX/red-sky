@@ -125,8 +125,14 @@ sequences print ASSAY PENDING and no trace.
   as JSON, minus password and session hashes. Closing the account needs the password,
   deletes what the privacy draft says it will, moves placed orders to `retained` (lot
   traceability), and the signed-out page then lists what was kept.
-- The delivery address is edited on the account page as well as at checkout. Standing
-  orders do not store an address of their own yet (see Product decisions).
+- The delivery address is edited on the account page as well as at checkout. Each
+  standing order keeps its own address (from the order that opened it); changing the
+  saved address offers to move them all.
+- Dispatch: `/admin` lists "Due to ship" for the next seven days, grouped into real
+  shipments (`lib/shipments.ts`: one account, one date, one address; lines out of stock
+  wait). Recording one writes an unpaid `SHP-` order (source `standing`) and moves each
+  standing order to next month, in one transaction that refuses a double record. When
+  payments exist, the charge belongs in `recordShipmentAction`.
 - `lib/server/auth.ts` — scrypt passwords, 90-day rolling `rs_session`; `rs_visitor`
   identifies guests; guest data merges into the account at sign-in.
 - `lib/session-client.ts` — the browser's copy of `/api/session`; favorites and cart are
@@ -164,8 +170,5 @@ Everything else is state feedback under 180ms (the heart's fill pop is 180ms).
 - Client stories publish only via moderation. Set `RED_SKY_MODERATORS` to see the queue.
 - Image generation access was denied this session; real product photography would
   replace the labelled placeholder.
-- When someone changes their saved address, should open standing orders follow it? The
-  page says they keep the address of the order that opened them; nothing dispatches yet,
-  so this is a decision to make before dispatch is built.
 - The bench assistant answers from catalogue data (`lib/assistant.ts`); if a model is
   wired in, keep the refusal first.

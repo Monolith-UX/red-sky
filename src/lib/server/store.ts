@@ -56,6 +56,8 @@ export const {
   allowAttempt,
   clearAttempts,
   addMessage,
+  setStandingAddress,
+  recordShipment,
   getLots,
   saveLot,
   deleteLot,

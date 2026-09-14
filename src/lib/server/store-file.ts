@@ -83,7 +83,7 @@ export type AdminLogEntry = { at: string; actor: string; action: string; detail:
 /** A placed order as staff see it: whose it was, and whether that account has since closed. */
 export type AdminOrder = { order: PlacedOrder; email: string | null; closed: boolean };
 
-export type AdminStanding = StandingOrder & { email: string | null };
+export type AdminStanding = StandingOrder & { email: string | null; owner: string };
 
 export type RetainedRecord = { email: string; closed: string; orders: PlacedOrder[] };
 
@@ -587,6 +587,41 @@ export async function clearAttempts(key: string) {
   attempts.delete(key);
 }
 
+/** Moves every one of an owner's standing orders to this address. Returns how many moved. */
+export function setStandingAddress(owner: string, address: Address) {
+  return update((db) => {
+    const list = db.orders[owner] ?? [];
+    db.orders[owner] = list.map((o) => ({ ...o, address }));
+    return list.length;
+  });
+}
+
+/**
+ * Records a month's shipment from standing orders and moves each to its next
+ * dispatch, in one write. Refuses, writing nothing, unless every order is
+ * still active and still due on the date staff saw — so a double click
+ * cannot record the same shipment twice.
+ */
+export function recordShipment(
+  owner: string,
+  order: PlacedOrder,
+  advance: { id: string; from: string; nextDispatch: string }[],
+) {
+  return update((db) => {
+    const list = db.orders[owner] ?? [];
+    const ok = advance.every((a) =>
+      list.some((o) => o.id === a.id && o.status === "active" && o.nextDispatch === a.from),
+    );
+    if (!ok) return false;
+    db.placed[owner] = [...(db.placed[owner] ?? []), { ...order, source: "standing" }];
+    db.orders[owner] = list.map((o) => {
+      const a = advance.find((x) => x.id === o.id);
+      return a ? { ...o, nextDispatch: a.nextDispatch } : o;
+    });
+    return true;
+  });
+}
+
 /* ── Admin ─────────────────────────────────────────────────── */
 
 export async function getLots(): Promise<Record<string, LotRecord>> {
@@ -649,7 +684,7 @@ export async function allPlacedOrders(limit = 200): Promise<AdminOrder[]> {
 export async function allStandingOrders(): Promise<AdminStanding[]> {
   const db = await read();
   return Object.entries(db.orders)
-    .flatMap(([owner, orders]) => orders.map((o) => ({ ...o, email: db.users[owner]?.email ?? null })))
+    .flatMap(([owner, orders]) => orders.map((o) => ({ ...o, owner, email: db.users[owner]?.email ?? null })))
     .sort((a, b) => a.nextDispatch.localeCompare(b.nextDispatch));
 }
 

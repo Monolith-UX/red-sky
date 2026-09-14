@@ -38,6 +38,7 @@ import {
   saveAvatar,
   saveProfile as writeProfile,
   setPasswordHash,
+  setStandingAddress,
 } from "@/lib/server/store";
 import { forgetVisitor, readVisitor } from "@/lib/server/visitor";
 
@@ -258,8 +259,14 @@ export async function saveDeliveryAddress(_: AddressState, form: FormData): Prom
   }
 
   await saveAddress(user.id, address);
+  const moved = form.get("moveStanding") === "on" ? await setStandingAddress(user.id, address) : 0;
   revalidatePath("/account");
-  return { ok: true, message: "Address saved." };
+  return {
+    ok: true,
+    message: moved
+      ? `Address saved, and ${moved === 1 ? "your standing order ships" : `all ${moved} standing orders ship`} there from the next dispatch.`
+      : "Address saved.",
+  };
 }
 
 export async function removeDeliveryAddress(): Promise<FormState> {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CHIPS, answerFor, type Reply } from "@/lib/assistant";
 
@@ -18,6 +19,7 @@ const OPENER: Message = {
 };
 
 export function BenchDock() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [showTop, setShowTop] = useState(false);
   const [messages, setMessages] = useState<Message[]>([OPENER]);
@@ -69,6 +71,9 @@ export function BenchDock() {
   }
 
   const chips = CHIPS;
+
+  // Staff pages are forms and ledgers; the assistant would only sit over their labels.
+  if (pathname.startsWith("/admin")) return null;
 
   return (
     <div className="bench-dock pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex justify-end">

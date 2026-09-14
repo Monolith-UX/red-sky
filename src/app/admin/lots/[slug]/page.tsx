@@ -5,6 +5,7 @@ import { LotForm, type LotDefaults } from "@/components/admin/lot-form";
 import { StaffOnly } from "@/components/admin/staff-only";
 import { classLabel, seedCatalogue } from "@/lib/catalog";
 import { sequenceFor } from "@/lib/coa";
+import { staffTime } from "@/lib/lots";
 import { currentAdmin } from "@/lib/server/admin";
 import { currentUser } from "@/lib/server/auth";
 import { getLots } from "@/lib/server/store";
@@ -62,7 +63,7 @@ export default async function EditLot({ params }: { params: Promise<{ slug: stri
           </p>
           <p className="mt-5 max-w-[62ch] text-[0.9375rem] leading-relaxed text-graphite">
             {row
-              ? `Saved ${new Date(row.updated).toUTCString().slice(5, 22)} UTC by ${row.updatedBy}${row.sample ? ", marked as sample data" : ""}.`
+              ? `Saved ${staffTime(row.updated)} ET by ${row.updatedBy}${row.sample ? ", marked as sample data" : ""}.`
               : "Not saved yet: the site shows the sample lot written in code. Enter the real release and its certificate figures, or keep it marked as sample."}
           </p>
         </div>

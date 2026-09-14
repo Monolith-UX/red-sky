@@ -96,6 +96,47 @@ check("an unknown lot has no certificate", (await page.eval(`fetch("/api/certifi
 await page.goto("/admin", 3000);
 check("the lot shows as saved, waiting for a rebuild", await page.eval(`[...document.querySelectorAll('#lots tbody tr')].find(r => r.textContent.includes("BPC-157"))?.textContent.includes("Waiting for rebuild")`));
 
+/* ── A monthly pair, moved to a new address, then shipped ── */
+for (const slug of ["bpc-157", "tb-500"]) {
+  await page.eval(`fetch("/api/cart", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "add", slug: "${slug}", plan: "monthly", quantity: 1 }) }).then(r => r.status)`);
+}
+await page.goto("/cart", 3000);
+for (const [f, v] of [["recipient", "Sam Staff"], ["line1", "40 Assay Court"], ["city", "Cambridge"], ["region", "Massachusetts"], ["postal", "02139"]]) {
+  await page.type(`input[name="address.${f}"]`, v);
+}
+await page.click('input[name="attest"]');
+await clickText("Place order");
+check("a monthly pair is ordered", await waitFor(bodyHas("Order recorded"), 15000));
+
+await page.goto("/account", 3000);
+await clickText("Change address");
+await waitFor(`document.querySelector('#profile input[name="address.line1"]')`);
+await page.eval(`document.querySelector('#profile input[name="address.line1"]').value = ""`);
+await page.type('#profile input[name="address.line1"]', "9 New Bench Lane");
+check("the address form offers to move both standing orders", await page.eval(bodyHas("Send all 2 standing orders here too")));
+await clickText("Save address");
+check("saving moves the standing orders", await waitFor(bodyHas("all 2 standing orders ship there")));
+let store = JSON.parse(readFileSync(STORE, "utf8"));
+const staffId = Object.values(store.users).find((u) => u.email === "staff-check@lab.org").id;
+check("each standing order holds the new address", store.orders[staffId].every((o) => o.address?.line1 === "9 New Bench Lane"));
+
+// Bring both due to today, as if the month had turned, so they appear this week.
+const today = new Date().toISOString().slice(0, 10);
+store.orders[staffId] = store.orders[staffId].map((o) => ({ ...o, nextDispatch: today }));
+writeFileSync(STORE, JSON.stringify(store, null, 2));
+await page.goto("/admin", 3000);
+check("the pair shows as one shipment due, with the stack saving", await page.eval(`(() => { const t = document.querySelector("#due")?.textContent ?? ""; return t.includes("BPC-157") && t.includes("TB-500") && t.includes("$96.00") && t.includes("$14.00 stack saving") && t.includes("9 New Bench Lane"); })()`));
+await clickText("Record shipment");
+check("recording confirms the shipment on the page", await waitFor(bodyHas("unpaid. Each of its standing orders moved to next")));
+store = JSON.parse(readFileSync(STORE, "utf8"));
+const shipments = (store.placed[staffId] ?? []).filter((o) => o.source === "standing");
+check(
+  "one shipment recorded, and both orders move to next month",
+  shipments.length === 1 && shipments[0].totals.today === 96 && shipments[0].address.line1 === "9 New Bench Lane" &&
+    store.orders[staffId].every((o) => o.nextDispatch > today),
+  `${shipments.length} shipments; next ${store.orders[staffId].map((o) => o.nextDispatch).join(", ")}`,
+);
+
 /* ── Reset a customer's password ── */
 await page.type('#accounts input[name="email"]', "customer-check@lab.org");
 await clickText("Set a temporary password");

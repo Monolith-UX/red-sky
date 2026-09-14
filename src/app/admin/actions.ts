@@ -2,14 +2,19 @@
 
 import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { todayIso } from "@/lib/account";
 import { seedCatalogue } from "@/lib/catalog";
 import { clean, isEmail } from "@/lib/forms";
 import { readLotForm } from "@/lib/lots";
+import { advanceFor, shipmentsDue } from "@/lib/shipments";
 import { audit, requireAdmin } from "@/lib/server/admin";
 import { hashPassword } from "@/lib/server/auth";
 import {
+  allStandingOrders,
   deleteLot,
   endOtherSessions,
+  recordShipment,
   findUserByEmail,
   getLots,
   saveCertificate,
@@ -86,6 +91,48 @@ export async function revertLotAction(slug: string): Promise<AdminState> {
   await audit(admin.email, "lot.revert", { slug });
   revalidatePath("/admin");
   return { ok: true, message: `Reverted to the values written in code. ${await rebuild()}` };
+}
+
+/**
+ * Records one shipment from standing orders. The browser names the group
+ * (owner and dispatch date); everything else — lines, prices, the stack
+ * saving, the address — is worked out here again from the store. Payment is
+ * not connected, so the record is unpaid; this is where a charge would go.
+ */
+export async function recordShipmentAction(owner: string, date: string): Promise<AdminState> {
+  const admin = await requireAdmin();
+  if (typeof owner !== "string" || typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { error: "That shipment was not understood." };
+  }
+
+  const shipment = shipmentsDue(await allStandingOrders(), date).find((s) => s.owner === owner && s.date === date);
+  if (!shipment || shipment.ships.length === 0) {
+    return { error: "Nothing in that shipment can ship now. Reload the page to see where it stands." };
+  }
+
+  const today = todayIso();
+  const ref = `SHP-${today.slice(2).replace(/-/g, "")}-${crypto.randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase()}`;
+  const recorded = await recordShipment(
+    owner,
+    {
+      ref,
+      placed: new Date().toISOString(),
+      lines: shipment.lines,
+      weekday: shipment.ships[0].weekday,
+      standing: shipment.ships.map((o) => o.id),
+      totals: { once: 0, monthly: shipment.total, saving: shipment.saving, today: shipment.total },
+      address: shipment.address ?? undefined,
+      source: "standing",
+    },
+    advanceFor(shipment.ships),
+  );
+  if (!recorded) return { error: "Someone recorded or changed this shipment a moment ago. Reload the page." };
+
+  await audit(admin.email, "shipment.record", { ref, account: shipment.email, lines: shipment.lines.length });
+  revalidatePath("/account");
+  // The shipment leaves the due list once recorded, taking its button with it, so the
+  // confirmation lives on the page instead (see `recorded` in admin/page.tsx).
+  redirect(`/admin?recorded=${ref}#due`);
 }
 
 /** Readable and long: four groups of four, no characters that are easy to misread. */

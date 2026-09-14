@@ -38,6 +38,16 @@ export type LotRecord = {
   updatedBy: string;
 };
 
+/** Times on staff pages, in the lab's own time zone: "Sep 14, 06:45 PM". */
+export const staffTime = (iso: string) =>
+  new Date(iso).toLocaleString("en-US", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/New_York",
+  });
+
 export const STOCK_STATES: { value: StockState; label: string }[] = [
   { value: "in", label: "In stock" },
   { value: "low", label: "Low stock" },

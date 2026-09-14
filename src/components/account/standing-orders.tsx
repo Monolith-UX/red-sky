@@ -149,6 +149,11 @@ function OrderRow({ order, today }: { order: StandingOrder; today: string }) {
             </span>
           )}
         </p>
+        {shown.address && (
+          <p className="mt-1 text-[0.8125rem] text-graphite">
+            To {shown.address.recipient}, {shown.address.city}, {shown.address.region}
+          </p>
+        )}
       </div>
 
       <p className="t-data col-start-2 self-start text-[1.0625rem] font-medium md:col-start-3 md:row-start-1 md:text-right">

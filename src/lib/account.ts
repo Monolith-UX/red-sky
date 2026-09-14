@@ -80,6 +80,8 @@ export type StandingOrder = {
   /** YYYY-MM-DD. Meaningful only while the order is active. */
   nextDispatch: string;
   created: string;
+  /** Where it ships: the checkout address, unless the customer has moved it since. */
+  address?: Address | null;
 };
 
 export const MAX_QUANTITY = 20;
@@ -121,6 +123,8 @@ export type PlacedOrder = {
   /** Prices as they were when the order was placed, not as they are now. */
   totals?: { once: number; monthly: number; saving: number; today: number };
   address?: Address;
+  /** "standing": a month's shipment recorded by staff from standing orders. */
+  source?: "checkout" | "standing";
 };
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);

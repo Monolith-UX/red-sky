@@ -86,6 +86,7 @@ type OrderRow = {
   standing: string[];
   totals: PlacedOrder["totals"] | null;
   address: Address | null;
+  source?: PlacedOrder["source"];
 };
 
 const toPlaced = (r: OrderRow): PlacedOrder => ({
@@ -96,6 +97,7 @@ const toPlaced = (r: OrderRow): PlacedOrder => ({
   standing: r.standing,
   totals: r.totals ?? undefined,
   address: r.address ?? undefined,
+  source: r.source ?? "checkout",
 });
 
 type StandingRow = {
@@ -106,6 +108,7 @@ type StandingRow = {
   status: StandingOrder["status"];
   next_dispatch: string;
   created: string;
+  address?: Address | null;
 };
 
 const toStanding = (r: StandingRow): StandingOrder => ({
@@ -116,6 +119,7 @@ const toStanding = (r: StandingRow): StandingOrder => ({
   status: r.status,
   nextDispatch: r.next_dispatch,
   created: r.created,
+  address: r.address ?? null,
 });
 
 const fromStanding = (owner: string, o: StandingOrder): StandingRow & { owner: string } => ({
@@ -127,6 +131,7 @@ const fromStanding = (owner: string, o: StandingOrder): StandingRow & { owner: s
   status: o.status,
   next_dispatch: o.nextDispatch,
   created: o.created,
+  address: o.address ?? null,
 });
 
 type StoryRow = Omit<Story, "verifiedOrder"> & { verified_order: boolean };
@@ -480,6 +485,27 @@ async function clearAttempts(key: string) {
   must(await db().from("attempts").delete().eq("key", key));
 }
 
+/** Moves every one of an owner's standing orders to this address. Returns how many moved. */
+async function setStandingAddress(owner: string, address: Address) {
+  const rows = must(await db().from("standing_orders").update({ address }).eq("owner", owner).select("id"));
+  return (rows ?? []).length;
+}
+
+/**
+ * Records a month's shipment and advances its standing orders in one
+ * transaction (`record_shipment`), refusing if any order has moved on since
+ * staff saw it.
+ */
+async function recordShipment(
+  owner: string,
+  order: PlacedOrder,
+  advance: { id: string; from: string; nextDispatch: string }[],
+) {
+  return must(
+    await db().rpc("record_shipment", { p_owner: owner, p_order: order, p_advance: advance }),
+  ) as boolean;
+}
+
 /* ── Admin ─────────────────────────────────────────────────── */
 
 type LotRow = {
@@ -620,7 +646,7 @@ async function allStandingOrders(): Promise<AdminStanding[]> {
     owner: string;
   })[];
   const { email } = await emailsFor(rows.map((r) => r.owner));
-  return rows.map((r) => ({ ...toStanding(r), email: email.get(r.owner) ?? null }));
+  return rows.map((r) => ({ ...toStanding(r), owner: r.owner, email: email.get(r.owner) ?? null }));
 }
 
 async function allMessages(limit = 200): Promise<ContactMessage[]> {
@@ -681,6 +707,8 @@ const store = {
   allowAttempt,
   clearAttempts,
   addMessage,
+  setStandingAddress,
+  recordShipment,
   getLots,
   saveLot,
   deleteLot,

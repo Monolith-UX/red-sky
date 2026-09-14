@@ -116,7 +116,7 @@ export function PasswordForm() {
  * The saved delivery address: shown as the label would print it, edited in
  * place, removable. Checkout starts from whatever is saved here.
  */
-export function AddressForm({ address }: { address: Address | null }) {
+export function AddressForm({ address, standing = 0 }: { address: Address | null; standing?: number }) {
   const [state, action, pending] = useActionState(saveDeliveryAddress, {});
   const [editing, setEditing] = useState(!address);
   const [removing, startRemove] = useTransition();
@@ -170,6 +170,15 @@ export function AddressForm({ address }: { address: Address | null }) {
           className={f.key === "line1" || f.key === "line2" ? "md:col-span-2" : ""}
         />
       ))}
+      {standing > 0 && (
+        <div className="md:col-span-2">
+          <Check name="moveStanding" defaultChecked>
+            {standing === 1
+              ? "Send my standing order here too, from its next dispatch"
+              : `Send all ${standing} standing orders here too, from their next dispatch`}
+          </Check>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-2">
         <button type="submit" disabled={pending} className="btn btn-primary disabled:opacity-60">
           {pending ? "Saving…" : "Save address"}

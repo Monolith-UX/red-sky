@@ -259,6 +259,15 @@ a {
 }
 
 /* The one ornament: a 6px hinomaru */
+/*
+ * Netlify injects a "Powered by Netlify" badge (an iframe, 64px tall, bottom
+ * right, above every stacking context) on some sites. It covered the bench
+ * assistant's button, so the dock lifts clear of it whenever it is present.
+ */
+body:has(#nl-badge-frame) .bench-dock {
+  bottom: 4.5rem;
+}
+
 .dot {
   display: inline-block;
   width: 0.375rem;

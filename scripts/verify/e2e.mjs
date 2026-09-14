@@ -8,6 +8,7 @@ import { launch } from "./cdp.mjs";
 
 const SCRATCH = fileURLToPath(new URL("./out", import.meta.url));
 const STORE = fileURLToPath(new URL("../../.data/store.json", import.meta.url));
+const STARTED = new Date().toISOString();
 let sb = null;
 if (process.env.E2E_STORE === "supabase") {
   try { process.loadEnvFile(fileURLToPath(new URL("../../.env.local", import.meta.url))); } catch {}
@@ -273,7 +274,8 @@ if (sb) {
   await sb.from("retained").delete().eq("email", email);
   await sb.from("stories").delete().eq("email", email);
   await sb.from("subscribers").delete().like("email", "releases+%@lab.org");
-  await sb.from("attempts").delete().or("key.like.%e2e2+%,key.like.%releases+%");
+  // Some attempt keys carry the account id rather than an address, so clear by time.
+  await sb.from("attempts").delete().gte("at", STARTED);
 }
 
 check("no page or console errors", page.errors.length === 0, page.errors.slice(0, 4).join(" // "));

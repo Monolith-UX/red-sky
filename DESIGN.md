@@ -108,6 +108,19 @@ sequences print ASSAY PENDING and no trace.
   is one transaction. Sign-in and form rate limits live in the `attempts` table so they
   hold across serverless instances. Sign-in stays the site's own (scrypt + hashed
   session tokens); Supabase Auth is not used.
+- `/admin` (staff: `RED_SKY_ADMINS`, else the moderators) — lots and certificates, orders,
+  standing orders, the contact inbox, password resets by hand, and a log of every visit
+  and change (`admin_log`; the privacy policy says staff access is logged).
+- Lots: sequence facts stay in `catalog.ts`; the lot (stock, price, fill, purity, dates,
+  every certificate figure, the certificate PDF) is a row in `lots`, edited in
+  `/admin/lots/[slug]`. `scripts/pull-lots.mjs` runs before every Netlify build and writes
+  the rows to `lib/lots.json` (`{}` in the repo, so local builds show the sample lots);
+  `catalog.ts` lays them over the sequences. Saving calls `NETLIFY_BUILD_HOOK`. A lot not
+  marked sample must state every certificate figure — gaps would otherwise be filled with
+  generated values (`coa.ts`). A failed pull fails the build, so the live catalogue never
+  silently reverts to sample data.
+- Email addresses are hidden while `EMAIL_LIVE` is false in `lib/contact.ts` (the domain is
+  not registered); every channel goes through the contact form, read in `/admin`.
 - Your data (account page): `/api/account/export` downloads everything the account holds
   as JSON, minus password and session hashes. Closing the account needs the password,
   deletes what the privacy draft says it will, moves placed orders to `retained` (lot

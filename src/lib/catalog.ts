@@ -1,8 +1,12 @@
 /**
  * The catalogue. Molecular formulas and average molecular weights are real,
- * and each one has been recomputed from its sequence; lots, purities, prices
- * and dates are sample data for the build.
+ * and each one has been recomputed from its sequence. The lots, purities,
+ * prices and dates written here are sample data; lots saved in /admin
+ * replace them at build time (see `withLot` and `lib/lots.ts`).
  */
+
+import lotRows from "./lots.json";
+import type { LotRecord } from "./lots";
 
 export type StockState = "in" | "low" | "out" | "made-to-order" | "upcoming";
 
@@ -28,6 +32,18 @@ export type ReleasedItem = Base & {
   released: string;
   /** When the next lot is expected, for a sequence that has sold through. */
   expected?: string;
+  /** Certificate figures entered in /admin. Absent ones fall back to sample values (see coa.ts). */
+  measured?: {
+    observedMass: number | null;
+    water: number | null;
+    largestImpurity: string | null;
+    analyst: string | null;
+    salt: string | null;
+    appearance: string | null;
+    /** Uploaded certificate PDF. */
+    certificate: string | null;
+    sample: boolean;
+  };
 };
 
 /** Announced but never released: no lot, no purity, and so no trace to draw. */
@@ -74,7 +90,8 @@ export const canOrder = (item: CatalogItem) =>
 export const canWaitlist = (item: CatalogItem) =>
   item.stock === "out" || item.stock === "upcoming";
 
-export const catalogue: CatalogItem[] = [
+/** The sequences, with sample lots. Rows saved in /admin replace the lot fields (see below). */
+const SEED: CatalogItem[] = [
   // ── Repair and recovery ──────────────────────────────────────────────
   {
     slug: "bpc-157",
@@ -480,6 +497,47 @@ export const catalogue: CatalogItem[] = [
     note: "Bremelanotide. Melanocortin receptor agonist.",
   },
 ];
+
+/**
+ * Lays a saved lot over its sequence. The row decides stock, price, fill and
+ * the lot itself; the sequence's formula, mass and class never change here.
+ */
+function withLot(item: CatalogItem, row: LotRecord | undefined): CatalogItem {
+  if (!row) return item;
+  const base = { ...item, price: row.price, fill: row.fill, retention: row.retention ?? item.retention };
+  if (row.stock === "upcoming") {
+    return { ...base, stock: "upcoming", purity: null, lot: null, released: null, expected: row.expected ?? item.expected ?? "" };
+  }
+  return {
+    ...base,
+    stock: row.stock,
+    purity: row.purity!,
+    lot: row.lot!,
+    released: row.released!,
+    expected: row.expected ?? undefined,
+    measured: {
+      observedMass: row.observedMass,
+      water: row.water,
+      largestImpurity: row.largestImpurity,
+      analyst: row.analyst,
+      salt: row.salt,
+      appearance: row.appearance,
+      certificate: row.certificate,
+      sample: row.sample,
+    },
+  };
+}
+
+// Written at build time on Netlify by scripts/pull-lots.mjs; `{}` in the repository.
+const LOTS = lotRows as Record<string, LotRecord>;
+
+export const catalogue: CatalogItem[] = SEED.map((item) => withLot(item, LOTS[item.slug]));
+
+/** The sequences as written in code, before any saved lot — for /admin to compare against. */
+export const seedCatalogue = SEED;
+
+/** The saved lots this build was made with, so /admin can tell which saves are live yet. */
+export const builtLots = LOTS;
 
 /** Every sequence with a lot on record — the ones that have a certificate. */
 export const released = catalogue.filter(isReleased);

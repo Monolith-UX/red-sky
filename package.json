@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/pull-lots.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "lots:pull": "node scripts/pull-lots.mjs --force"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

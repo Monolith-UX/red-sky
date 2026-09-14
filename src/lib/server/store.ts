@@ -56,6 +56,26 @@ export const {
   allowAttempt,
   clearAttempts,
   addMessage,
+  getLots,
+  saveLot,
+  deleteLot,
+  saveCertificate,
+  readCertificate,
+  allPlacedOrders,
+  allStandingOrders,
+  allMessages,
+  logAdmin,
+  adminLog,
 } = impl;
 
-export type { ContactMessage, Kept, RetainedRecord, SessionRecord, User, WaitlistEntry } from "./store-file";
+export type {
+  AdminLogEntry,
+  AdminOrder,
+  AdminStanding,
+  ContactMessage,
+  Kept,
+  RetainedRecord,
+  SessionRecord,
+  User,
+  WaitlistEntry,
+} from "./store-file";

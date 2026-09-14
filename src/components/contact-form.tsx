@@ -55,7 +55,7 @@ function MessageForm({ onAnother }: { onAnother: () => void }) {
           </p>
         )}
         <p className="t-data mt-5 border-t border-hairline pt-4 text-[0.75rem] leading-relaxed text-graphite">
-          This build stores the message but does not yet forward it to an inbox.
+          The team reads it in the site's inbox and replies from their own email.
         </p>
         <button type="button" onClick={onAnother} className="btn btn-ghost mt-7">
           Send another message

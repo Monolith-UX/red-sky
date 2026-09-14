@@ -84,6 +84,8 @@ export default async function ProductPage({
     .filter((c) => c.klass === item.klass && c.slug !== item.slug)
     .slice(0, 4);
 
+  const certificatePdf = item.lot === null ? null : coaFor(item).certificate;
+
   // An announced sequence still has a method, a formula and a theoretical
   // mass; everything a lot would measure is marked as not yet measured.
   const certificate: [string, string][] =
@@ -344,6 +346,15 @@ export default async function ProductPage({
                 </div>
               ))}
             </dl>
+
+            {certificatePdf && (
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-hairline px-5 py-4 md:px-7">
+                <p className="text-[0.875rem]">The signed certificate for lot {item.lot}, as issued.</p>
+                <a href={certificatePdf} target="_blank" rel="noreferrer" className="btn btn-ghost">
+                  Open the certificate (PDF)
+                </a>
+              </div>
+            )}
 
             {sequence && (
               <div className="border-t border-hairline px-5 py-4 md:px-7">

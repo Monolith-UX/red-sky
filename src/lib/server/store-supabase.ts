@@ -13,7 +13,16 @@ import {
 } from "@/lib/account";
 import type { Story } from "@/lib/stories";
 import type * as FileStore from "./store-file";
-import type { ContactMessage, Kept, SessionRecord, User } from "./store-file";
+import type { LotRecord } from "@/lib/lots";
+import type {
+  AdminLogEntry,
+  AdminOrder,
+  AdminStanding,
+  ContactMessage,
+  Kept,
+  SessionRecord,
+  User,
+} from "./store-file";
 
 /**
  * The store over Supabase: Postgres for records, a private Storage bucket for
@@ -471,6 +480,163 @@ async function clearAttempts(key: string) {
   must(await db().from("attempts").delete().eq("key", key));
 }
 
+/* ── Admin ─────────────────────────────────────────────────── */
+
+type LotRow = {
+  slug: string;
+  stock: LotRecord["stock"];
+  price: number;
+  fill: string;
+  lot: string | null;
+  purity: number | null;
+  released: string | null;
+  expected: string | null;
+  retention: number | null;
+  observed_mass: number | null;
+  water: number | null;
+  largest_impurity: string | null;
+  analyst: string | null;
+  salt: string | null;
+  appearance: string | null;
+  certificate: string | null;
+  sample: boolean;
+  updated: string;
+  updated_by: string;
+};
+
+// numeric columns arrive as numbers or strings depending on precision; normalise.
+const n = (v: number | string | null) => (v === null ? null : Number(v));
+
+const toLot = (r: LotRow): LotRecord => ({
+  slug: r.slug,
+  stock: r.stock,
+  price: Number(r.price),
+  fill: r.fill,
+  lot: r.lot,
+  purity: n(r.purity),
+  released: r.released,
+  expected: r.expected,
+  retention: n(r.retention),
+  observedMass: n(r.observed_mass),
+  water: n(r.water),
+  largestImpurity: r.largest_impurity,
+  analyst: r.analyst,
+  salt: r.salt,
+  appearance: r.appearance,
+  certificate: r.certificate,
+  sample: r.sample,
+  updated: iso(r.updated)!,
+  updatedBy: r.updated_by,
+});
+
+async function getLots(): Promise<Record<string, LotRecord>> {
+  const rows = must(await db().from("lots").select()) as LotRow[];
+  return Object.fromEntries(rows.map((r) => [r.slug, toLot(r)]));
+}
+
+/** Saves a lot, keeping its certificate unless `certificate` is given (null removes it). */
+async function saveLot(record: Omit<LotRecord, "certificate" | "updated">, certificate?: string | null) {
+  const row = {
+    slug: record.slug,
+    stock: record.stock,
+    price: record.price,
+    fill: record.fill,
+    lot: record.lot,
+    purity: record.purity,
+    released: record.released,
+    expected: record.expected,
+    retention: record.retention,
+    observed_mass: record.observedMass,
+    water: record.water,
+    largest_impurity: record.largestImpurity,
+    analyst: record.analyst,
+    salt: record.salt,
+    appearance: record.appearance,
+    sample: record.sample,
+    updated: new Date().toISOString(),
+    updated_by: record.updatedBy,
+    ...(certificate === undefined ? {} : { certificate }),
+  };
+  return toLot(must(await db().from("lots").upsert(row).select().single()) as LotRow);
+}
+
+async function deleteLot(slug: string) {
+  must(await db().from("lots").delete().eq("slug", slug));
+}
+
+const CERTS = "certificates";
+const certificatePath = (lot: string) => `${lot.replace(/[^A-Z0-9-]/gi, "")}.pdf`;
+
+/** Stores a certificate PDF under its lot number and returns the path to record on the lot. */
+async function saveCertificate(lot: string, bytes: Uint8Array) {
+  const path = certificatePath(lot);
+  must(await db().storage.from(CERTS).upload(path, bytes, { contentType: "application/pdf", upsert: true }));
+  return path;
+}
+
+async function readCertificate(lot: string) {
+  const row = must(await db().from("lots").select("certificate").eq("lot", lot).not("certificate", "is", null).limit(1));
+  if (!row?.length) return null;
+  const { data, error } = await db().storage.from(CERTS).download(certificatePath(lot));
+  if (error || !data) return null;
+  return Buffer.from(await data.arrayBuffer());
+}
+
+/** Emails for a set of owners: live accounts first, then closed ones held in `retained`. */
+async function emailsFor(owners: string[]) {
+  const unique = [...new Set(owners)];
+  if (!unique.length) return { email: new Map<string, string>(), closed: new Set<string>() };
+  const [users, kept] = await Promise.all([
+    db().from("users").select("id, email").in("id", unique),
+    db().from("retained").select("owner, email").in("owner", unique),
+  ]);
+  const email = new Map<string, string>();
+  const closed = new Set<string>();
+  for (const r of must(kept) as { owner: string; email: string }[]) {
+    email.set(r.owner, r.email);
+    closed.add(r.owner);
+  }
+  for (const r of must(users) as { id: string; email: string }[]) {
+    email.set(r.id, r.email);
+    closed.delete(r.id);
+  }
+  return { email, closed };
+}
+
+async function allPlacedOrders(limit = 200): Promise<AdminOrder[]> {
+  const rows = must(
+    await db().from("placed_orders").select().order("placed", { ascending: false }).limit(limit),
+  ) as (OrderRow & { owner: string })[];
+  const { email, closed } = await emailsFor(rows.map((r) => r.owner));
+  return rows.map((r) => ({
+    order: toPlaced(r),
+    email: email.get(r.owner) ?? null,
+    closed: closed.has(r.owner) || !email.has(r.owner),
+  }));
+}
+
+async function allStandingOrders(): Promise<AdminStanding[]> {
+  const rows = must(await db().from("standing_orders").select().order("next_dispatch")) as (StandingRow & {
+    owner: string;
+  })[];
+  const { email } = await emailsFor(rows.map((r) => r.owner));
+  return rows.map((r) => ({ ...toStanding(r), email: email.get(r.owner) ?? null }));
+}
+
+async function allMessages(limit = 200): Promise<ContactMessage[]> {
+  const rows = must(await db().from("messages").select().order("received", { ascending: false }).limit(limit));
+  return (rows as ContactMessage[]).map((m) => ({ ...m, received: iso(m.received)! }));
+}
+
+async function logAdmin(actor: string, action: string, detail: Record<string, unknown> = {}) {
+  must(await db().from("admin_log").insert({ actor, action, detail }));
+}
+
+async function adminLog(limit = 50): Promise<AdminLogEntry[]> {
+  const rows = must(await db().from("admin_log").select("at, actor, action, detail").order("at", { ascending: false }).limit(limit));
+  return (rows as AdminLogEntry[]).map((r) => ({ ...r, at: iso(r.at)! }));
+}
+
 /* ── Contact ───────────────────────────────────────────────── */
 
 async function addMessage(message: ContactMessage) {
@@ -515,6 +681,16 @@ const store = {
   allowAttempt,
   clearAttempts,
   addMessage,
+  getLots,
+  saveLot,
+  deleteLot,
+  saveCertificate,
+  readCertificate,
+  allPlacedOrders,
+  allStandingOrders,
+  allMessages,
+  logAdmin,
+  adminLog,
 } satisfies { [K in keyof typeof FileStore]: unknown };
 
 export default store;

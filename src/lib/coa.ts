@@ -2,7 +2,8 @@ import type { ReleasedItem } from "./catalog";
 
 /**
  * The certificate of analysis for a lot. Formulas, masses and sequences are
- * real; the release measurements are sample data derived deterministically
+ * real. Release measurements come from the lot as entered in /admin; where a
+ * figure has not been entered, a sample value is derived deterministically
  * from the lot, so a given lot always reports the same certificate.
  */
 
@@ -87,16 +88,22 @@ export type Coa = {
   water: string;
   analyst: string;
   largestImpurity: string;
+  /** Where the uploaded certificate PDF is served, if there is one. */
+  certificate: string | null;
 };
 
+/**
+ * Figures entered in /admin win; anything not entered falls back to the
+ * seeded sample value. Theoretical mass is the formula's average mass.
+ */
 export function coaFor(item: ReleasedItem): Coa {
   const r = seeded(item);
   const o = OVERRIDES[item.slug] ?? {};
+  const m = item.measured;
 
-  const observed = Number(item.mass);
-  // Theoretical sits a hundredth or two from observed, as it does in practice.
-  const drift = (Math.round(r(1) * 4) - 2) / 100;
-  const theoretical = observed + drift;
+  const theoretical = Number(item.mass);
+  // Sample: observed sits a hundredth or two from theoretical, as it does in practice.
+  const observed = m?.observedMass ?? theoretical + (Math.round(r(1) * 4) - 2) / 100;
 
   const shortfall = 100 - item.purity;
   const largest = Math.max(0.05, shortfall * (0.45 + r(2) * 0.3));
@@ -107,12 +114,14 @@ export function coaFor(item: ReleasedItem): Coa {
     retention: `${item.retention.toFixed(1)} min`,
     observed: `${observed.toFixed(2)} Da`,
     theoretical: `${theoretical.toFixed(2)} Da`,
-    delta: `${Math.abs(drift).toFixed(2)} Da`,
-    salt: o.salt ?? "Trifluoroacetate",
-    appearance: o.appearance ?? DEFAULT_APPEARANCE,
-    water: `${(2.4 + r(3) * 3.4).toFixed(1)}%`,
-    analyst: ANALYSTS[Math.floor(r(4) * ANALYSTS.length)],
-    largestImpurity: `${largest.toFixed(2)}% at ${(item.retention - 0.4 - r(5) * 1.4).toFixed(1)} min`,
+    delta: `${Math.abs(observed - theoretical).toFixed(2)} Da`,
+    salt: m?.salt ?? o.salt ?? "Trifluoroacetate",
+    appearance: m?.appearance ?? o.appearance ?? DEFAULT_APPEARANCE,
+    water: `${(m?.water ?? 2.4 + r(3) * 3.4).toFixed(1)}%`,
+    analyst: m?.analyst ?? ANALYSTS[Math.floor(r(4) * ANALYSTS.length)],
+    largestImpurity:
+      m?.largestImpurity ?? `${largest.toFixed(2)}% at ${(item.retention - 0.4 - r(5) * 1.4).toFixed(1)} min`,
+    certificate: m?.certificate ? `/api/certificate/${encodeURIComponent(item.lot)}` : null,
   };
 }
 

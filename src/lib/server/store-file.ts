@@ -11,6 +11,7 @@ import {
   type Profile,
   type StandingOrder,
 } from "@/lib/account";
+import type { LotRecord } from "@/lib/lots";
 import type { Story } from "@/lib/stories";
 
 /**
@@ -71,7 +72,18 @@ type Db = {
    * from the order date, per the privacy policy) and for nothing else.
    */
   retained: Record<string, RetainedRecord>;
+  /** Lots as saved in /admin, by sequence slug. */
+  lots: Record<string, LotRecord>;
+  /** Who did what in /admin — the privacy policy says staff access is logged. */
+  adminLog: AdminLogEntry[];
 };
+
+export type AdminLogEntry = { at: string; actor: string; action: string; detail: Record<string, unknown> };
+
+/** A placed order as staff see it: whose it was, and whether that account has since closed. */
+export type AdminOrder = { order: PlacedOrder; email: string | null; closed: boolean };
+
+export type AdminStanding = StandingOrder & { email: string | null };
 
 export type RetainedRecord = { email: string; closed: string; orders: PlacedOrder[] };
 
@@ -92,6 +104,8 @@ const empty = (): Db => ({
   stories: [],
   subscribers: [],
   retained: {},
+  lots: {},
+  adminLog: [],
 });
 
 async function read(): Promise<Db> {
@@ -571,6 +585,86 @@ export async function allowAttempt(key: string, limit: number, windowMs: number)
 
 export async function clearAttempts(key: string) {
   attempts.delete(key);
+}
+
+/* ── Admin ─────────────────────────────────────────────────── */
+
+export async function getLots(): Promise<Record<string, LotRecord>> {
+  return (await read()).lots;
+}
+
+/** Saves a lot, keeping its certificate unless `certificate` is given (null removes it). */
+export function saveLot(record: Omit<LotRecord, "certificate" | "updated">, certificate?: string | null) {
+  return update((db) => {
+    const previous = db.lots[record.slug];
+    db.lots[record.slug] = {
+      ...record,
+      certificate: certificate === undefined ? (previous?.certificate ?? null) : certificate,
+      updated: new Date().toISOString(),
+    };
+    return db.lots[record.slug];
+  });
+}
+
+export function deleteLot(slug: string) {
+  return update((db) => {
+    delete db.lots[slug];
+  });
+}
+
+const CERTIFICATES = path.join(DIR, "certificates");
+const certificateFile = (lot: string) => path.join(CERTIFICATES, `${lot.replace(/[^A-Z0-9-]/gi, "")}.pdf`);
+
+/** Stores a certificate PDF under its lot number and returns the path to record on the lot. */
+export async function saveCertificate(lot: string, bytes: Uint8Array) {
+  await mkdir(CERTIFICATES, { recursive: true });
+  await writeFile(certificateFile(lot), bytes);
+  return `${lot}.pdf`;
+}
+
+export async function readCertificate(lot: string) {
+  const row = Object.values((await read()).lots).find((l) => l.lot === lot && l.certificate);
+  if (!row) return null;
+  try {
+    return await readFile(certificateFile(lot));
+  } catch {
+    return null;
+  }
+}
+
+export async function allPlacedOrders(limit = 200): Promise<AdminOrder[]> {
+  const db = await read();
+  return Object.entries(db.placed)
+    .flatMap(([owner, orders]) =>
+      orders.map((order) => ({
+        order,
+        email: db.users[owner]?.email ?? db.retained[owner]?.email ?? null,
+        closed: !db.users[owner],
+      })),
+    )
+    .sort((a, b) => b.order.placed.localeCompare(a.order.placed))
+    .slice(0, limit);
+}
+
+export async function allStandingOrders(): Promise<AdminStanding[]> {
+  const db = await read();
+  return Object.entries(db.orders)
+    .flatMap(([owner, orders]) => orders.map((o) => ({ ...o, email: db.users[owner]?.email ?? null })))
+    .sort((a, b) => a.nextDispatch.localeCompare(b.nextDispatch));
+}
+
+export async function allMessages(limit = 200): Promise<ContactMessage[]> {
+  return [...(await read()).messages].sort((a, b) => b.received.localeCompare(a.received)).slice(0, limit);
+}
+
+export function logAdmin(actor: string, action: string, detail: Record<string, unknown> = {}) {
+  return update((db) => {
+    db.adminLog.push({ at: new Date().toISOString(), actor, action, detail });
+  });
+}
+
+export async function adminLog(limit = 50): Promise<AdminLogEntry[]> {
+  return [...(await read()).adminLog].reverse().slice(0, limit);
 }
 
 /* ── Contact ───────────────────────────────────────────────── */

@@ -2,10 +2,11 @@ import "server-only";
 import { currentUser } from "./auth";
 import { getProfile } from "./store";
 
-/** Moderators are named by email in RED_SKY_MODERATORS, comma-separated. */
+/** Moderators are named by email in RED_SKY_MODERATORS, comma-separated; staff (RED_SKY_ADMINS) moderate too. */
 export async function isModerator() {
   const user = await currentUser();
-  const allowed = (process.env.RED_SKY_MODERATORS ?? "")
+  const allowed = [process.env.RED_SKY_MODERATORS, process.env.RED_SKY_ADMINS]
+    .join(",")
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);

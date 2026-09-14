@@ -134,7 +134,7 @@ export function AddressForm({ address }: { address: Address | null }) {
   if (address && !editing) {
     return (
       <div>
-        <AddressBlock address={address} className="t-data text-[0.875rem]" />
+        <AddressBlock address={address} className="text-[0.9375rem]" />
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
           <button type="button" onClick={() => setEditing(true)} className="btn btn-ghost">
             Change address

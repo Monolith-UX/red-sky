@@ -153,18 +153,23 @@ export function CartView({
         </h2>
 
         <dl className="px-5 text-[0.875rem]">
-          <div className="flex items-baseline justify-between gap-4 border-b border-hairline py-3">
-            <dt className="text-graphite">
-              One-time <span className="t-data text-[0.75rem]">· {vials("once")} vials</span>
-            </dt>
-            <dd className="t-data">{money(once)}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4 border-b border-hairline py-3">
-            <dt className="text-graphite">
-              First monthly delivery <span className="t-data text-[0.75rem]">· {vials("monthly")} vials</span>
-            </dt>
-            <dd className="t-data">{money(monthly)}</dd>
-          </div>
+          {/* A plan with nothing on it gets no row: "0 vials · $0.00" says nothing. */}
+          {vials("once") > 0 && (
+            <div className="flex items-baseline justify-between gap-4 border-b border-hairline py-3">
+              <dt className="text-graphite">
+                One-time <span className="t-data text-[0.75rem]">· {vials("once")} vials</span>
+              </dt>
+              <dd className="t-data">{money(once)}</dd>
+            </div>
+          )}
+          {vials("monthly") > 0 && (
+            <div className="flex items-baseline justify-between gap-4 border-b border-hairline py-3">
+              <dt className="text-graphite">
+                First monthly delivery <span className="t-data text-[0.75rem]">· {vials("monthly")} vials</span>
+              </dt>
+              <dd className="t-data">{money(monthly)}</dd>
+            </div>
+          )}
           {savings.map((s) => (
             <div key={`${s.id}-${s.plan}`} className="flex items-baseline justify-between gap-4 border-b border-hairline py-3">
               <dt>
@@ -367,18 +372,17 @@ function LineRow({ row, weekday, lines }: { row: Row; weekday: Weekday; lines: C
         </p>
 
         {stack && partner && canOrder(partner) && (
-          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8125rem] leading-relaxed">
-            <span className="dot" aria-hidden="true" />
+          // The dot sits on the first line's centre and never wraps away from the sentence.
+          <p className="mt-2.5 flex items-start gap-x-3 text-[0.8125rem] leading-relaxed">
+            <span className="dot mt-[0.55rem]" aria-hidden="true" />
             {paired ? (
               <span>
                 Part of the {stack.name} — {money(stack.saving)} off each set.
               </span>
             ) : (
-              <>
-                <span>
-                  Add {partner.name} {line.plan === "monthly" ? "monthly " : ""}for the {stack.name}:{" "}
-                  {money(stack.saving)} off the pair.
-                </span>
+              <span>
+                Add {partner.name} {line.plan === "monthly" ? "monthly " : ""}for the {stack.name}:{" "}
+                {money(stack.saving)} off the pair.{" "}
                 <button
                   type="button"
                   onClick={() => run({ op: "add", slug: partner.slug, plan: line.plan, quantity: line.quantity })}
@@ -386,7 +390,7 @@ function LineRow({ row, weekday, lines }: { row: Row; weekday: Weekday; lines: C
                 >
                   Add {partner.name}
                 </button>
-              </>
+              </span>
             )}
           </p>
         )}

@@ -82,7 +82,7 @@ export function CertificateLookup() {
                     className="group grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 py-4 no-underline transition-colors duration-150 hover:bg-paper md:grid-cols-[7rem_minmax(0,1fr)_7rem_6rem_4rem_8rem]"
                   >
                     <span className="t-data order-2 text-[0.8125rem] text-graphite md:order-none md:text-ink">
-                      {c.lot ?? "—"}
+                      {c.lot ?? <span className="text-graphite">—</span>}
                     </span>
                     <span className="order-1 text-[1rem] font-medium transition-colors duration-150 group-hover:text-sun md:order-none">
                       {c.name}
@@ -91,13 +91,18 @@ export function CertificateLookup() {
                       {c.released ? shortDate(c.released) : "Pending"}
                     </span>
                     <span className="t-data order-4 text-right text-[0.8125rem] font-medium md:order-none md:text-left">
-                      {c.purity !== null ? `${c.purity.toFixed(2)}%` : "—"}
+                      {c.purity !== null ? `${c.purity.toFixed(2)}%` : <span className="font-normal text-graphite">—</span>}
                     </span>
                     <span className="t-data hidden text-[0.8125rem] text-graphite md:block">
                       {coa?.analyst ?? "—"}
                     </span>
                     <span className="t-label order-5 col-span-2 text-graphite md:order-none md:col-span-1">
-                      {c.released === null ? waitingFor(c) : STOCK_LABEL[c.stock]}
+                      {/* "Due Oct 20" holds the column to one line; the full date is on the lot page. */}
+                      {c.released === null
+                        ? c.stock === "upcoming"
+                          ? `Due ${shortDate(c.expected).replace(/, \d{4}$/, "")}`
+                          : waitingFor(c)
+                        : STOCK_LABEL[c.stock]}
                     </span>
                   </Link>
                 </li>

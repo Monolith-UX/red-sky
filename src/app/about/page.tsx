@@ -101,7 +101,7 @@ export default function AboutPage() {
                 <li key={p.name} className="flex flex-col pt-8 sm:pr-8">
                   <span
                     aria-hidden="true"
-                    className="t-data grid h-14 w-14 place-items-center rounded-full bg-sun text-[0.8125rem] font-medium tracking-[0.04em] text-paper"
+                    className="t-data grid h-14 w-14 place-items-center rounded-full bg-ink text-[0.8125rem] font-medium tracking-[0.04em] text-paper"
                   >
                     {p.initials}
                   </span>

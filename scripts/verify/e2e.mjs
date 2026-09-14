@@ -1,4 +1,5 @@
 // End-to-end checks across the storefront. Run: BASE_URL=http://localhost:PORT node scripts/verify/e2e.mjs
+// Start from an empty .data/: the stories check expects nothing published yet.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { launch } from "./cdp.mjs";
@@ -44,7 +45,8 @@ await page.click('[data-e2e="stack"]');
 check("stack button adds both vials", await waitFor(page, `document.querySelector('a[href="/cart"]')?.getAttribute("aria-label") === "Cart, 2 vials"`));
 
 /* ── Newsletter ────────────────────────────────────────────── */
-await page.type("#newsletter-email", "releases@lab.org");
+// A fresh address each run: the sign-up is rate-limited per address, in memory, for ten minutes.
+await page.type("#newsletter-email", `releases+${Date.now()}@lab.org`);
 await page.click('#newsletter button[type="submit"]');
 check("newsletter stores the address", await waitFor(page, bodyHas("You are on the list") + " || " + bodyHas("already on the list")));
 

@@ -1,21 +1,46 @@
 import Link from "next/link";
 
+/**
+ * Every link goes somewhere real. Where no page exists yet, the link is to the
+ * nearest thing that answers the question — a journal entry, a section of the
+ * terms, or the contact desk with the topic already chosen.
+ */
 const columns = [
   {
     title: "Catalog",
-    links: ["All sequences", "New lots", "Bulk quantities", "Custom synthesis"],
+    links: [
+      { label: "All sequences", href: "/catalog" },
+      { label: "New lots", href: "/blog?category=release-notes" },
+      { label: "Bulk quantities", href: "/contact?topic=quote" },
+      { label: "Custom synthesis", href: "/contact?topic=synthesis" },
+    ],
   },
   {
     title: "Verification",
-    links: ["Certificates of analysis", "Testing method", "Third-party labs", "Lot lookup"],
+    links: [
+      { label: "Certificates of analysis", href: "/blog/how-to-read-a-coa" },
+      { label: "Testing method", href: "/#method" },
+      { label: "Reading a chromatogram", href: "/blog/reading-your-chromatogram" },
+      { label: "Lot lookup", href: "/catalog#browse" },
+    ],
   },
   {
     title: "Ordering",
-    links: ["Shipping and cold chain", "Returns", "Institutional accounts", "Terms"],
+    links: [
+      { label: "Shipping and cold chain", href: "/blog/cold-chain-last-mile" },
+      { label: "Returns", href: "/terms#returns-and-replacements" },
+      { label: "Standing orders", href: "/account#auto-delivery" },
+      { label: "Terms", href: "/terms" },
+    ],
   },
   {
     title: "Company",
-    links: ["About Red Sky", "Journal", "Contact", "Careers"],
+    links: [
+      { label: "About Red Sky", href: "/#attestation" },
+      { label: "Journal", href: "/blog" },
+      { label: "Contact", href: "/contact" },
+      { label: "Your account", href: "/account" },
+    ],
   },
 ];
 
@@ -53,13 +78,13 @@ export function SiteFooter() {
               <h2 className="t-label text-graphite">{col.title}</h2>
               <ul role="list" className="mt-4 space-y-0.5">
                 {col.links.map((link) => (
-                  <li key={link}>
-                    <a
-                      href="#catalog"
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
                       className="block py-1.5 text-[0.875rem] no-underline transition-colors duration-150 hover:text-sun"
                     >
-                      {link}
-                    </a>
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -85,7 +110,7 @@ export function SiteFooter() {
                 { label: "Terms", href: "/terms" },
                 { label: "Cookie Policy", href: "/cookie-policy" },
                 { label: "Accessibility", href: "/accessibility" },
-                { label: "Sitemap", href: "/sitemap.xml" },
+                { label: "Sitemap", href: "/sitemap" },
               ].map((l) => (
                 <li key={l.label}>
                   <Link

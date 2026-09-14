@@ -115,6 +115,14 @@ async function current(): Promise<{ hash: string; record: SessionRecord } | null
   return record ? { hash, record } : null;
 }
 
+/** How long this device stays signed in, for the account page to say so plainly. */
+export async function sessionInfo() {
+  const session = await current();
+  return session
+    ? { persistent: session.record.persistent, expires: session.record.expires }
+    : null;
+}
+
 /** The signed-in user, if any. Safe to call while rendering: it never writes. */
 export async function currentUser() {
   const session = await current();

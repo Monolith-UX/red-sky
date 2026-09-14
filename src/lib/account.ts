@@ -104,3 +104,20 @@ export function nextDispatch(weekday: Weekday, from: Date | string): string {
 }
 
 export const todayIso = () => iso(new Date());
+
+/** "Tue, Oct 6, 2026" — a dispatch is a day of the week before it is a date. */
+export const dispatchDate = (isoDate: string) =>
+  new Date(isoDate + "T00:00:00Z").toLocaleDateString("en-US", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+/**
+ * Dispatches are not run by this build, so a stored date can fall behind the
+ * calendar. Anything already past rolls forward to the next real dispatch.
+ */
+export const upcomingDispatch = (order: Pick<StandingOrder, "weekday" | "nextDispatch">, today: string) =>
+  order.nextDispatch > today ? order.nextDispatch : nextDispatch(order.weekday, today);

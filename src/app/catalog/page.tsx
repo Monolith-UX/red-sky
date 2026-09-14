@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { PageMasthead } from "@/components/page-masthead";
+import { HeroCarousel } from "@/components/hero-carousel";
 import { CatalogBrowser } from "@/components/catalog/catalog-browser";
-import { CLASSES, catalogue, released } from "@/lib/catalog";
+import { catalogSlides } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Catalogue — Red Sky",
@@ -10,22 +10,11 @@ export const metadata: Metadata = {
 };
 
 export default function CatalogPage() {
-  const floor = Math.min(...released.map((c) => c.purity));
-
   return (
     <>
-      <PageMasthead
-        eyebrow="Catalogue — every lot on the shelf"
-        heading="Nothing here ships without its trace."
-        lead="Each card carries the lot number, the area purity and the chromatogram that lot actually produced. Filter by class or availability; the numbers are the ones on the certificate."
-        stats={[
-          { label: "Sequences", value: String(catalogue.length) },
-          { label: "Classes", value: String(CLASSES.length) },
-          { label: "Lowest purity held", value: `${floor.toFixed(2)}%` },
-        ]}
-      />
+      <HeroCarousel slides={catalogSlides} label="The catalogue, read three ways" />
 
-      <section className="shell pb-24 pt-4 md:pb-32">
+      <section id="browse" aria-label="All sequences" className="shell scroll-mt-20 pb-24 pt-4 md:pb-32">
         <CatalogBrowser />
       </section>
     </>

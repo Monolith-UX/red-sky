@@ -1,3 +1,6 @@
+import type { CatalogItem } from "@/lib/catalog";
+import { Vial } from "./catalog/vial";
+
 /**
  * The signature: a hinomaru disc that behaves like an instrument window.
  * The same trace is painted twice — ink on the bench, paper-white inside the
@@ -47,20 +50,25 @@ export function Reading({
   reading,
   drawKey,
   inverted = false,
+  path,
+  alt,
 }: {
   reading: ReadingKind;
   drawKey: number;
   /** On the sun field the disc is paper and the trace reads red inside it. */
   inverted?: boolean;
+  /** A specific lot's trace in this 620 × 380 frame, in place of the drawn one. */
+  path?: string;
+  alt?: string;
 }) {
   const clip = `disc-${reading}`;
-  const d = TRACES[reading];
+  const d = path ?? TRACES[reading];
   const onField = inverted ? "#fff" : "var(--color-ink)";
   const discFill = inverted ? "var(--color-paper)" : "var(--color-sun)";
   const inDisc = inverted ? "var(--color-sun)" : "#fff";
 
   return (
-    <svg viewBox="0 0 620 380" role="img" aria-label={ALT[reading]} className="block w-full">
+    <svg viewBox="0 0 620 380" role="img" aria-label={alt ?? ALT[reading]} className="block w-full">
       <defs>
         <clipPath id={clip}>
           <circle cx={DISC.cx} cy={DISC.cy} r={DISC.r} />
@@ -106,6 +114,57 @@ export function Reading({
           pathLength={1}
           className="trace-draw"
         />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * A release, seen through the same window: the lots themselves, labelled from
+ * their own records, standing in the paper disc above a horizon of hairlines.
+ * Original artwork built from the house's parts, so it needs no licence.
+ */
+export function StackWindow({ items, alt }: { items: CatalogItem[]; alt: string }) {
+  const clip = "disc-stack";
+  const h = 300;
+  const w = (h * 1000) / 920;
+  const spread = items.length > 1 ? 62 : 0;
+
+  return (
+    <svg viewBox="0 0 620 380" role="img" aria-label={alt} className="block w-full">
+      <defs>
+        <clipPath id={clip}>
+          <circle cx={DISC.cx} cy={DISC.cy} r={DISC.r} />
+        </clipPath>
+      </defs>
+
+      {/* the horizon, tightening toward the ground */}
+      {[276, 296, 312, 324, 333, 340].map((y, i) => (
+        <line
+          key={y}
+          x1="0"
+          y1={y}
+          x2="620"
+          y2={y}
+          stroke="#fff"
+          strokeWidth={1.2}
+          strokeOpacity={0.62 - i * 0.07}
+        />
+      ))}
+
+      <circle cx={DISC.cx} cy={DISC.cy} r={DISC.r} fill="var(--color-paper)" />
+
+      <g clipPath={`url(#${clip})`}>
+        {items.map((item, i) => {
+          const centre = DISC.cx + (i - (items.length - 1) / 2) * spread * 2;
+          return (
+            <Vial
+              key={item.slug}
+              item={item}
+              place={{ x: centre - w / 2, y: 28 + i * 6, width: w, height: h }}
+            />
+          );
+        })}
       </g>
     </svg>
   );

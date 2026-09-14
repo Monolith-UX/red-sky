@@ -4,11 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { nav } from "@/lib/content";
+import { AccountLink, CartLink, DrawerAccountItem } from "./store/header-controls";
+
+/**
+ * Routes that open on the red masthead. The header's first render has to be
+ * right before any script runs, or every paper page flashes white nav text on
+ * a grey ground until the effect below measures the page.
+ */
+const RED_MASTHEAD = ["/", "/catalog", "/blog", "/contact"];
 
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"top" | "hero" | "past">("top");
+  const [mode, setMode] = useState<"top" | "hero" | "past">(
+    RED_MASTHEAD.includes(pathname) ? "top" : "past",
+  );
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
 
@@ -143,34 +153,8 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-0.5">
-          <Link
-            href="/catalog"
-            className={`hidden h-11 items-center px-3 text-[0.8125rem] no-underline transition-colors duration-150 lg:flex ${
-              light
-                ? "text-[var(--color-on-sun)] hover:text-white"
-                : "text-graphite hover:text-ink"
-            }`}
-          >
-            Sign in
-          </Link>
-
-          <Link
-            href="/catalog"
-            className="flex h-11 items-center gap-2 px-3 no-underline"
-            aria-label="Cart, 0 items"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M1 1.5h2.2l1.9 8.6h7.1l1.6-6.1H4.4"
-                stroke="currentColor"
-                strokeWidth="1.3"
-                strokeLinecap="square"
-              />
-              <circle cx="6.4" cy="13.4" r="1.2" fill="currentColor" />
-              <circle cx="11.9" cy="13.4" r="1.2" fill="currentColor" />
-            </svg>
-            <span className="t-data text-[0.75rem]">0</span>
-          </Link>
+          <AccountLink light={light} />
+          <CartLink />
 
           <button
             ref={trigger}
@@ -234,7 +218,7 @@ export function SiteHeader() {
             className="flex-1 overflow-y-auto px-[clamp(1.25rem,6vw,2rem)] py-4"
           >
             <ul role="list">
-              {[...nav, { label: "Sign in", href: "/catalog" }].map((item) => (
+              {nav.map((item) => (
                 <li key={item.label} className="border-b border-hairline">
                   <Link
                     href={item.href}
@@ -248,6 +232,9 @@ export function SiteHeader() {
                   </Link>
                 </li>
               ))}
+              <li className="border-b border-hairline">
+                <DrawerAccountItem onNavigate={() => setOpen(false)} />
+              </li>
             </ul>
 
             <Link

@@ -2,15 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import { type CatalogItem, shortDate } from "@/lib/catalog";
+import type { CatalogItem } from "@/lib/catalog";
 import { isEmail } from "@/lib/forms";
 import { setWaitlist, useSession } from "@/lib/session-client";
-
-/** What the waitlist is waiting for, in one line. */
-export function waitingFor(item: CatalogItem) {
-  if (item.stock === "upcoming") return `First lot expected ${shortDate(item.expected)}`;
-  return item.expected ? `Next lot expected ${shortDate(item.expected)}` : "Next lot in synthesis";
-}
 
 const others = (n: number) => (n === 1 ? "1 other" : `${n} others`);
 
@@ -150,7 +144,7 @@ export function WaitlistControl({
       className={detail ? "mt-6" : "relative z-10 mt-3"}
     >
       <label htmlFor={`${id}-email`} className={detail ? "t-label block text-graphite" : "visually-hidden"}>
-        Email me when {item.name} is released
+        Email me when {item.name} is {item.stock === "upcoming" ? "released" : "back in stock"}
       </label>
       <div className={`flex gap-2 ${detail ? "mt-2.5 flex-col sm:flex-row" : ""}`}>
         <input

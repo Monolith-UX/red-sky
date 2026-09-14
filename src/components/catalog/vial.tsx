@@ -31,7 +31,19 @@ function nameLines(name: string): { lines: string[]; size: number } {
   return { lines: [name.slice(0, at), name.slice(at + 1)], size: 42 };
 }
 
-export function Vial({ item, className = "" }: { item: CatalogItem; className?: string }) {
+export function Vial({
+  item,
+  className = "",
+  place,
+}: {
+  item: CatalogItem;
+  className?: string;
+  /**
+   * Set when the vial is drawn inside another SVG: its box in that SVG, with
+   * the whole photograph multiplied onto whatever ground it stands on.
+   */
+  place?: { x: number; y: number; width: number; height: number };
+}) {
   const { lines, size } = nameLines(item.name);
   const nameBase = lines.length === 1 ? 480 : 466;
   const formulaBase = nameBase + (lines.length - 1) * 44 + 34;
@@ -39,13 +51,18 @@ export function Vial({ item, className = "" }: { item: CatalogItem; className?: 
 
   return (
     <svg
-      viewBox="0 0 1000 1000"
-      role="img"
-      aria-label={`Sealed vial of ${form.toLowerCase()} ${item.name}, ${item.fill}${
-        item.lot ? `, lot ${item.lot}` : ", before its first lot"
-      }.`}
-      className={`block ${className}`}
-      style={{ isolation: "isolate" }}
+      // the photograph's empty floor and sky are cropped, so the vial fills more of a wide box
+      viewBox="0 40 1000 920"
+      {...(place
+        ? { ...place, "aria-hidden": true }
+        : {
+            role: "img",
+            "aria-label": `Sealed vial of ${form.toLowerCase()} ${item.name}, ${item.fill}${
+              item.lot ? `, lot ${item.lot}` : ", before its first lot"
+            }.`,
+          })}
+      className={place ? undefined : `block ${className}`}
+      style={{ isolation: "isolate", ...(place ? { mixBlendMode: "multiply" } : {}) }}
     >
       <image href="/img/vial.webp" width="1000" height="1000" />
 

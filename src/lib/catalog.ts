@@ -484,6 +484,12 @@ export const catalogue: CatalogItem[] = [
 /** Every sequence with a lot on record — the ones that have a certificate. */
 export const released = catalogue.filter(isReleased);
 
+/** What a waitlist is waiting for, in one line. */
+export function waitingFor(item: CatalogItem) {
+  if (item.stock === "upcoming") return `First lot expected ${shortDate(item.expected)}`;
+  return item.expected ? `Next lot expected ${shortDate(item.expected)}` : "Next lot in synthesis";
+}
+
 export const getItem = (slug: string) => catalogue.find((c) => c.slug === slug);
 
 export const SORTS = [

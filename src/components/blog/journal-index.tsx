@@ -91,6 +91,14 @@ export function JournalIndex() {
     isCategory(initial) ? initial : "all",
   );
 
+  // Follow the URL when a link changes it while this page is already open —
+  // the nav's Handling item, or a "Filed under" link.
+  const [followed, setFollowed] = useState(initial);
+  if (initial !== followed) {
+    setFollowed(initial);
+    setFilter(isCategory(initial) ? initial : "all");
+  }
+
   const entries = useMemo(() => {
     if (filter !== "all") return byDate.filter((p) => p.category === filter);
     const lead = byDate.find((p) => p.featured);

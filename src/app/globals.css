@@ -126,6 +126,15 @@ a {
   height: 1px;
   background-color: var(--color-hairline);
 }
+/* A long eyebrow ran off a 320px screen; on small widths it wraps and keeps a stub of rule */
+@media (max-width: 40rem) {
+  .rail-label {
+    white-space: normal;
+  }
+  .rail-label::after {
+    min-width: 1.5rem;
+  }
+}
 .on-ink .rail-label {
   color: #8d94a0;
 }

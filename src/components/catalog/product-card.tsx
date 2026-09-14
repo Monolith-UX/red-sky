@@ -6,11 +6,12 @@ import {
   classLabel,
   money,
   shortDate,
+  waitingFor,
 } from "@/lib/catalog";
 import { TRACE_H, TRACE_W, traceFor } from "@/lib/trace";
 import { AddToCartButton } from "@/components/store/add-to-cart";
-import { FavoriteButton } from "@/components/store/favorite-button";
-import { WaitlistControl, waitingFor } from "@/components/store/waitlist";
+import { ProductActions } from "@/components/store/product-actions";
+import { WaitlistControl } from "@/components/store/waitlist";
 import { Vial } from "./vial";
 
 export function ProductCard({ item }: { item: CatalogItem }) {
@@ -35,7 +36,7 @@ export function ProductCard({ item }: { item: CatalogItem }) {
           </span>
         )}
         <span className="absolute right-1 top-1 z-20">
-          <FavoriteButton slug={item.slug} name={item.name} />
+          <ProductActions item={item} />
         </span>
       </div>
 

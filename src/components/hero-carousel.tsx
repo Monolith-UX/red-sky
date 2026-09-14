@@ -1,13 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
-import { Reading, Ruler } from "./reading";
-import { slides } from "@/lib/content";
+import { Reading, Ruler, StackWindow } from "./reading";
+import { type Slide, stackLots } from "@/lib/content";
 
 const INTERVAL = 7000;
 
-export function HeroCarousel() {
+/**
+ * The red masthead as a carousel. The homepage and the catalogue each pass
+ * their own slides; the slot, the rhythm and the controls are shared, so the
+ * two read as one system.
+ */
+export function HeroCarousel({ slides, label }: { slides: Slide[]; label: string }) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [held, setHeld] = useState(false);
@@ -24,9 +29,12 @@ export function HeroCarousel() {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  const go = useCallback((n: number) => {
-    setIndex((i) => (n + slides.length) % slides.length);
-  }, []);
+  const go = useCallback(
+    (n: number) => {
+      setIndex(() => (n + slides.length) % slides.length);
+    },
+    [slides.length],
+  );
 
   useEffect(() => {
     if (!playing || held || reduced) return;
@@ -36,11 +44,12 @@ export function HeroCarousel() {
 
   const slide = slides[index];
   const autoplaying = playing && !reduced;
+  const lots = slide.kind === "stack" ? stackLots(slide.lots) : [];
 
   return (
     <section
       aria-roledescription="carousel"
-      aria-label="What every Red Sky lot is released against"
+      aria-label={label}
       id="hero"
       className="sun-field on-sun relative -mt-16 pb-14 pt-[5.5rem] md:-mt-[4.5rem] md:pb-20 md:pt-[7.5rem]"
       onMouseEnter={() => setHeld(true)}
@@ -97,7 +106,13 @@ export function HeroCarousel() {
               {slide.kind === "reading" ? (
                 <>
                   <div className="mt-6 md:mt-8">
-                    <Reading reading={slide.reading} drawKey={index} inverted />
+                    <Reading
+                      reading={slide.reading}
+                      drawKey={index}
+                      inverted
+                      path={slide.trace}
+                      alt={slide.alt}
+                    />
                   </div>
                   <div className="mt-3">
                     <Ruler marks={slide.rulerMarks} inverted />
@@ -105,31 +120,22 @@ export function HeroCarousel() {
                 </>
               ) : (
                 <>
-                  <div
-                    key={`img-${slide.id}`}
-                    className="slide-in relative mt-6 aspect-[620/380] w-full overflow-hidden md:mt-8"
-                  >
-                    <Image
-                      src={slide.src}
-                      alt={slide.alt}
-                      fill
-                      sizes="(min-width: 1024px) 50vw, 100vw"
-                      className="object-cover"
-                    />
+                  <div key={`stack-${slide.id}`} className="slide-in mt-6 md:mt-8">
+                    <StackWindow items={lots} alt={slide.alt} />
                   </div>
 
                   {/* Same slot as the ruler: what the stack is made of */}
                   <dl className="mt-3 grid grid-cols-2 border-t border-hairline">
-                    {slide.stack.map((item, i) => (
+                    {lots.map((item, i) => (
                       <div
-                        key={item.name}
+                        key={item.slug}
                         className={`flex items-baseline justify-between gap-3 py-2.5 ${
                           i === 0 ? "pr-5" : "border-l border-hairline pl-5"
                         }`}
                       >
                         <dt className="t-data text-[0.8125rem]">{item.name}</dt>
                         <dd className="t-data text-[0.8125rem] text-[var(--color-on-sun)]">
-                          {item.purity}
+                          {item.purity?.toFixed(2)}%
                         </dd>
                       </div>
                     ))}
@@ -151,13 +157,16 @@ export function HeroCarousel() {
               className="slide-in col-span-12 self-end lg:col-span-5 lg:col-start-1 lg:row-start-2 lg:pb-2"
             >
               <p className="t-lead lg:mt-10">{slide.body}</p>
-              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:gap-3 md:mt-10">
-                <a href="#catalog" className="btn btn-primary">
-                  Browse the catalog
-                </a>
-                <a href="#method" className="btn btn-ghost">
-                  See a certificate
-                </a>
+              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:gap-3 md:mt-10">
+                {slide.actions.map((a, i) => (
+                  <Link
+                    key={a.href + a.label}
+                    href={a.href}
+                    className={`btn ${i === 0 ? "btn-primary" : "btn-ghost"}`}
+                  >
+                    {a.label}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>

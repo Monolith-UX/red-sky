@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SectionHeader } from "./section-header";
 import { Vial } from "./catalog/vial";
 import { AddToCartButton } from "./store/add-to-cart";
-import { FavoriteButton } from "./store/favorite-button";
+import { ProductActions } from "./store/product-actions";
 import { catalogue, money, released, shortDate } from "@/lib/catalog";
 
 export function CatalogSection() {
@@ -30,7 +30,7 @@ export function CatalogSection() {
             <div className="relative aspect-[4/3] w-full bg-white">
               <Vial item={featured} className="absolute inset-0 h-full w-full p-4" />
               <span className="absolute right-1.5 top-1.5">
-                <FavoriteButton slug={featured.slug} name={featured.name} />
+                <ProductActions item={featured} />
               </span>
             </div>
 

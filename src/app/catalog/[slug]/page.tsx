@@ -7,8 +7,8 @@ import { ProductCard } from "@/components/catalog/product-card";
 import { Vial } from "@/components/catalog/vial";
 import { SectionHeader } from "@/components/section-header";
 import { PurchasePanel } from "@/components/store/add-to-cart";
-import { FavoriteButton } from "@/components/store/favorite-button";
-import { WaitlistControl, waitingFor } from "@/components/store/waitlist";
+import { ProductActions } from "@/components/store/product-actions";
+import { WaitlistControl } from "@/components/store/waitlist";
 import {
   type CatalogItem,
   STOCK_LABEL,
@@ -18,6 +18,7 @@ import {
   getItem,
   money,
   shortDate,
+  waitingFor,
 } from "@/lib/catalog";
 import { METHOD, appearanceFor, coaFor, sequenceFor } from "@/lib/coa";
 import { productFaqs } from "@/lib/product-faqs";
@@ -53,7 +54,7 @@ function shipping(item: CatalogItem) {
       return "Synthesized to order, typically 10 to 15 business days, with a certificate for your own lot.";
     case "out":
     case "upcoming":
-      return `${waitingFor(item)}. The waitlist gets one email, the day the certificate goes up.`;
+      return `${waitingFor(item)}.`;
   }
 }
 
@@ -194,6 +195,9 @@ export default async function ProductPage({
                   {STOCK_LABEL[item.stock]}
                 </span>
               )}
+              <span className="absolute right-2 top-2 z-20">
+                <ProductActions item={item} variant="detail" />
+              </span>
             </div>
 
             <div className="mt-5">
@@ -272,13 +276,10 @@ export default async function ProductPage({
               ))}
             </dl>
 
-            <div className="mt-6 flex items-end justify-between gap-4">
-              <p className="t-data text-[1.75rem] font-medium leading-none">
-                {money(item.price)}
-                <span className="ml-2 text-[0.8125rem] font-normal text-graphite">per vial</span>
-              </p>
-              <FavoriteButton slug={item.slug} name={item.name} variant="detail" />
-            </div>
+            <p className="t-data mt-7 text-[1.75rem] font-medium leading-none">
+              {money(item.price)}
+              <span className="ml-2 text-[0.8125rem] font-normal text-graphite">per vial</span>
+            </p>
 
             {canOrder(item) ? <PurchasePanel item={item} /> : <WaitlistControl item={item} variant="detail" />}
 

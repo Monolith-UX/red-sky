@@ -45,6 +45,3 @@ next-env.d.ts
 
 # local stores written by route handlers and server actions in development
 /.data/
-
-# not cleared for commercial use; kept out of history entirely
-/public/img/wolverine-stack.jpg

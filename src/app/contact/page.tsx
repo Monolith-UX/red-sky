@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ContactForm } from "@/components/contact-form";
 import { PageMasthead } from "@/components/page-masthead";
 import { SectionHeader } from "@/components/section-header";
-import { CHANNELS } from "@/lib/contact";
+import { CHANNELS, EMAIL_LIVE } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Contact — Red Sky",
@@ -40,7 +40,7 @@ export default function ContactPage() {
           <section aria-labelledby="channels-heading" className="col-span-12 lg:col-span-5">
             <p className="rail-label">Channels — write to the right desk</p>
             <h2 id="channels-heading" className="t-h2 mt-6 max-w-[14ch] text-[clamp(1.75rem,2.6vw,2.25rem)]">
-              Three addresses, each read by the people who answer it.
+              {EMAIL_LIVE ? "Three addresses" : "Three desks"}, each read by the people who answer it.
             </h2>
 
             <ul role="list" className="mt-10 border-t border-ink">
@@ -50,12 +50,22 @@ export default function ContactPage() {
                     <h3 className="t-h3">{c.title}</h3>
                     <span className="t-label text-graphite">{c.reply}</span>
                   </div>
-                  <a
-                    href={`mailto:${c.email}`}
-                    className="t-data mt-2 inline-block text-[0.9375rem] decoration-sun underline-offset-4"
-                  >
-                    {c.email}
-                  </a>
+                  {EMAIL_LIVE ? (
+                    <a
+                      href={`mailto:${c.email}`}
+                      className="t-data mt-2 inline-block text-[0.9375rem] decoration-sun underline-offset-4"
+                    >
+                      {c.email}
+                    </a>
+                  ) : (
+                    // A full load, so the form reads the topic from the address on mount.
+                    <a
+                      href={`/contact?topic=${c.key === "lab" ? "lot" : c.key}#message`}
+                      className="mt-2 inline-block text-[0.9375rem] decoration-sun underline-offset-4"
+                    >
+                      Write through the form
+                    </a>
+                  )}
                   <p className="mt-2 max-w-[44ch] text-[0.875rem] leading-relaxed text-graphite">
                     {c.covers}
                   </p>
@@ -99,8 +109,9 @@ export default function ContactPage() {
 
           {/* ── Form ───────────────────────────────────────────────── */}
           <section
+            id="message"
             aria-labelledby="form-heading"
-            className="col-span-12 self-start border border-hairline bg-paper p-6 sm:p-8 lg:col-span-6 lg:col-start-7"
+            className="col-span-12 scroll-mt-24 self-start border border-hairline bg-paper p-6 sm:p-8 lg:col-span-6 lg:col-start-7"
           >
             <h2 id="form-heading" className="t-h2 text-[clamp(1.75rem,2.6vw,2.25rem)]">
               Send a message

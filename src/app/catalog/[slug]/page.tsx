@@ -431,7 +431,7 @@ export default async function ProductPage({
                 ? "What buyers ask before it is released."
                 : "What buyers ask before they order this one."
             }
-            note="Anything outside this goes to lab@redskybio.com, answered within a business day."
+            note="Anything outside this goes through the contact page, answered within a business day."
           />
           <div className="mt-12 max-w-[64rem]">
             <Faqs items={faqs} heading={`About ${item.name}`} id="product-questions" />

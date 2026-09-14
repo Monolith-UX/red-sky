@@ -79,7 +79,7 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
   }
   if (!(await allowAttempt(`sign-in:${email}`))) {
     return {
-      error: "Too many attempts for that address. Wait ten minutes, or write to lab@redskybio.com.",
+      error: "Too many attempts for that address. Wait ten minutes, or ask through the contact page.",
       fields,
     };
   }

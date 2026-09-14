@@ -83,7 +83,7 @@ export const policies: Record<PolicySlug, Policy> = {
       { t: "h2", text: "Your rights" },
       {
         t: "p",
-        text: "Depending on where you live, you can ask us for a copy of the data we hold about you, ask us to correct it, ask us to delete it, object to processing, or ask for it in a portable format. If you have an account, the Your data section of the account page does two of these straight away: it downloads everything the account holds as one file, and it closes the account. For anything else, write to privacy@redskybio.com and we will respond within thirty days. We will not charge you for this and we will not make the service worse because you asked.",
+        text: "Depending on where you live, you can ask us for a copy of the data we hold about you, ask us to correct it, ask us to delete it, object to processing, or ask for it in a portable format. If you have an account, the Your data section of the account page does two of these straight away: it downloads everything the account holds as one file, and it closes the account. For anything else, send a request through the contact page, choosing My data and privacy, and we will respond within thirty days. We will not charge you for this and we will not make the service worse because you asked.",
       },
       {
         t: "p",
@@ -102,7 +102,7 @@ export const policies: Record<PolicySlug, Policy> = {
       { t: "h2", text: "Changes and contact" },
       {
         t: "p",
-        text: "If we change this policy materially we will date the change at the top of this page and, where the change affects how we use data you have already given us, email anyone on the list. Questions go to privacy@redskybio.com or to Red Sky Biosciences LLC, 1140 Ferrier Street, Unit 4, Reno, Nevada 89502.",
+        text: "If we change this policy materially we will date the change at the top of this page and, where the change affects how we use data you have already given us, email anyone on the list. Questions go through the contact page, or by post to Red Sky Biosciences LLC, 1140 Ferrier Street, Unit 4, Reno, Nevada 89502.",
       },
     ],
   },
@@ -207,7 +207,7 @@ export const policies: Record<PolicySlug, Policy> = {
       { t: "h2", text: "Governing law and contact" },
       {
         t: "p",
-        text: "These terms are governed by the laws of the State of Nevada, and the courts of Nevada have exclusive jurisdiction, except that consumers may bring proceedings in their own place of residence where local law gives them that right. Questions go to lab@redskybio.com.",
+        text: "These terms are governed by the laws of the State of Nevada, and the courts of Nevada have exclusive jurisdiction, except that consumers may bring proceedings in their own place of residence where local law gives them that right. Questions go through the contact page.",
       },
     ],
   },
@@ -258,7 +258,7 @@ export const policies: Record<PolicySlug, Policy> = {
       { t: "h2", text: "Changes" },
       {
         t: "p",
-        text: "If we add a cookie, it gets added to the list above and this page gets a new date. Questions go to privacy@redskybio.com.",
+        text: "If we add a cookie, it gets added to the list above and this page gets a new date. Questions go through the contact page.",
       },
     ],
   },
@@ -306,7 +306,7 @@ export const policies: Record<PolicySlug, Policy> = {
       { t: "h2", text: "Telling us something is broken" },
       {
         t: "p",
-        text: "If any part of this site stops you doing something, write to access@redskybio.com with the page address and what happened. We aim to reply within five business days and to tell you either when it will be fixed or why it will not be. If you need information from a page that you cannot use, say so and we will send you the content in another format at no cost.",
+        text: "If any part of this site stops you doing something, tell us through the contact page, choosing Accessibility of this site, with the page address and what happened. We aim to reply within five business days and to tell you either when it will be fixed or why it will not be. If you need information from a page that you cannot use, say so and we will send you the content in another format at no cost.",
       },
       { t: "h2", text: "Formal complaints" },
       {

@@ -58,7 +58,7 @@ export async function submitStory(_: StoryState, form: FormData): Promise<StoryS
     }
   }
   if (!(await allowAttempt(`story:${fields.email}`, 3, 24 * 60 * 60 * 1000))) {
-    return { error: "That is several stories in a day. Write to lab@redskybio.com if you have more to send.", fields: all };
+    return { error: "That is several stories in a day. Use the contact page if you have more to send.", fields: all };
   }
 
   const flags = flagsFor(fields.title, fields.story, fields.outcome);

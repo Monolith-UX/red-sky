@@ -1,6 +1,6 @@
 "use server";
 
-import { CLINICAL, TOPICS, channelFor, isTopic } from "@/lib/contact";
+import { CLINICAL, EMAIL_LIVE, TOPICS, channelFor, isTopic } from "@/lib/contact";
 import { clean, cleanText, isEmail } from "@/lib/forms";
 import { allowAttempt } from "@/lib/server/auth";
 import { addMessage } from "@/lib/server/store";
@@ -44,7 +44,9 @@ export async function sendMessage(_: ContactState, form: FormData): Promise<Cont
   }
   if (!(await allowAttempt(`contact:${fields.email}`, 5, 60 * 60 * 1000))) {
     return {
-      error: `That is a lot of messages in an hour. Write to ${channel.email} directly instead.`,
+      error: EMAIL_LIVE
+        ? `That is a lot of messages in an hour. Write to ${channel.email} directly instead.`
+        : "That is a lot of messages in an hour. Wait a while and send the rest together.",
       fields,
     };
   }

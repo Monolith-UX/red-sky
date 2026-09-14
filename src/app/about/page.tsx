@@ -146,7 +146,10 @@ export default function AboutPage() {
                 Reno, Nevada 89502
               </p>
               <p className="t-data mt-4 text-[0.875rem] leading-relaxed text-graphite">
-                lab@redskybio.com · +1 775 555 0143
+                +1 775 555 0143 ·{" "}
+                <a href="/contact#message" className="decoration-sun underline-offset-4">
+                  Write to the team
+                </a>
               </p>
             </div>
             <ul role="list" className="col-span-12 border-t border-ink lg:col-span-6 lg:col-start-7">

@@ -134,7 +134,7 @@ const TOPICS: Topic[] = [
   {
     match: /\b(contact|email|phone|call|talk to|human|person)/i,
     reply: () => ({
-      text: "The technical team is at lab@redskybio.com and +1 775 555 0143, and answers within a business day.",
+      text: "The technical team answers through the contact page within a business day, or on +1 775 555 0143.",
       link: { href: "/contact", label: "Contact the team" },
     }),
   },

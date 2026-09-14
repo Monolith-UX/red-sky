@@ -3,6 +3,14 @@
  * and the rest of the site already commit to — nothing here is new policy.
  */
 
+/**
+ * False until the domain is registered and its mailboxes exist. While false,
+ * no address is shown or linked, and every channel is reached through the
+ * contact form (stored, and read in /admin). Flip it and the addresses below
+ * reappear on the contact page, the form and the policy sidebar.
+ */
+export const EMAIL_LIVE = false;
+
 export const CHANNELS = [
   {
     key: "lab",

@@ -15,8 +15,8 @@ export async function GET() {
 
   const file = {
     exported: new Date().toISOString(),
-    from: "Red Sky Biosciences — redskybio.com",
-    note: "Everything this account holds. Password and session hashes are left out: they are credentials, not information about you. Questions to privacy@redskybio.com.",
+    from: "Red Sky Biosciences",
+    note: "Everything this account holds. Password and session hashes are left out: they are credentials, not information about you. Questions through the contact page.",
     ...data,
   };
 

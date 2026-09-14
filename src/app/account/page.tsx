@@ -289,7 +289,11 @@ function SignedOut({ next, closed }: { next: string; closed: Kept[] | null }) {
                 </>
               )}
               <p className="mt-4 text-[0.8125rem] text-graphite">
-                Questions about any of it go to privacy@redskybio.com.
+                Questions about any of it go through the{" "}
+                <a href="/contact?topic=privacy#message" className="text-ink decoration-sun underline-offset-4">
+                  contact page
+                </a>
+                .
               </p>
             </div>
           </div>

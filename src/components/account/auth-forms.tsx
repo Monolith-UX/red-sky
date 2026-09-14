@@ -39,9 +39,9 @@ export function SignInForm({ next }: { next: string }) {
         {pending ? "Signing in…" : "Sign in"}
       </button>
       <p className="text-[0.8125rem] leading-relaxed text-graphite">
-        Forgotten the password? Write to{" "}
-        <a href="mailto:lab@redskybio.com" className="text-ink decoration-sun underline-offset-4">
-          lab@redskybio.com
+        Forgotten the password?{" "}
+        <a href="/contact?topic=order#message" className="text-ink decoration-sun underline-offset-4">
+          Send a message
         </a>{" "}
         from the address on the account and we will reset it.
       </p>

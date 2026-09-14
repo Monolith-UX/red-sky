@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { sendMessage, type ContactState } from "@/app/contact/actions";
 import { Field, FormMessage } from "@/components/forms/fields";
-import { CLINICAL, TOPICS, channelFor, isTopic, type TopicValue } from "@/lib/contact";
+import { CLINICAL, EMAIL_LIVE, TOPICS, channelFor, isTopic, type TopicValue } from "@/lib/contact";
 
 /** Remounts the form after a message is sent, so "send another" starts clean. */
 export function ContactForm() {
@@ -85,7 +85,7 @@ function MessageForm({ onAnother }: { onAnother: () => void }) {
           ))}
         </select>
         <p id={`${id}-route`} className="t-data mt-2 text-[0.75rem] text-graphite">
-          Goes to {channel.email} · {channel.reply.toLowerCase()}
+          Goes to {EMAIL_LIVE ? channel.email : `the ${channel.title.toLowerCase()} desk`} · {channel.reply.toLowerCase()}
         </p>
       </div>
 

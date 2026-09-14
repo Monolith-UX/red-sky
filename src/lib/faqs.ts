@@ -168,7 +168,7 @@ export const faqs: Record<string, Faq[]> = {
     },
     {
       q: "Where do I find the certificate for a specific lot?",
-      a: "On the sequence page in the catalogue, or by sending the lot number to lab@redskybio.com.",
+      a: "On the sequence page in the catalogue, or by sending the lot number through the contact page.",
     },
   ],
 };

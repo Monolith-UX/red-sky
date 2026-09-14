@@ -244,7 +244,7 @@ export function CloseAccountForm({ activeOrders, placedOrders }: { activeOrders:
 
         <p className="mt-6 max-w-[62ch] text-[0.8125rem] leading-relaxed text-graphite">
           Download your data first if you want a copy — it cannot be recovered afterwards. For
-          anything kept, write to privacy@redskybio.com.
+          anything kept, write through the contact page.
         </p>
 
         <form action={action} noValidate className="mt-6 grid max-w-[28rem] gap-5">

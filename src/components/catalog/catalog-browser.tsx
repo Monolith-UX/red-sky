@@ -226,8 +226,8 @@ export function CatalogBrowser() {
         <p className="mt-10 max-w-[62ch] text-[0.8125rem] leading-relaxed text-graphite">
           Every price is per vial. Bulk quantities and sequences outside this list are
           quoted within one business day — write to{" "}
-          <a href="mailto:lab@redskybio.com" className="decoration-sun underline-offset-4">
-            lab@redskybio.com
+          <a href="/contact?topic=quote#message" className="decoration-sun underline-offset-4">
+            the technical team
           </a>
           .
         </p>

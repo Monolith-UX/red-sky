@@ -250,7 +250,7 @@ export function SiteHeader() {
               in-vitro laboratory research. Not for human or veterinary consumption.
             </p>
             <p className="t-data mt-5 pb-6 text-[0.75rem] text-[var(--color-on-sun)]">
-              lab@redskybio.com · +1 775 555 0143
+              +1 775 555 0143
             </p>
           </nav>
         </div>

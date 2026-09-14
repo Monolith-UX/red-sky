@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MobileToc } from "@/components/mobile-toc";
 import { Prose } from "@/components/prose";
 import { TocAside, type TocItem } from "@/components/toc-aside";
+import { CHANNELS, EMAIL_LIVE } from "@/lib/contact";
 import { headingId } from "@/lib/faqs";
 import { policies, policyList, type PolicySlug } from "@/lib/legal";
 import { longDate } from "@/lib/posts";
@@ -69,13 +70,22 @@ export function PolicyPage({ slug }: { slug: PolicySlug }) {
 
               <div className="mt-8 border-t border-hairline pt-4">
                 <p className="t-label text-graphite">Ask a person</p>
-                <p className="t-data mt-3 text-[0.8125rem] leading-relaxed">
-                  privacy@redskybio.com
-                  <br />
-                  access@redskybio.com
-                  <br />
-                  lab@redskybio.com
-                </p>
+                <ul role="list" className="mt-3 space-y-1.5 text-[0.8125rem] leading-snug">
+                  {CHANNELS.map((c) => (
+                    <li key={c.key}>
+                      {EMAIL_LIVE ? (
+                        <span className="t-data">{c.email}</span>
+                      ) : (
+                        <a
+                          href={`/contact?topic=${c.key === "lab" ? "lot" : c.key}#message`}
+                          className="no-underline hover:text-sun"
+                        >
+                          {c.title}
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </TocAside>
           </div>

@@ -140,7 +140,11 @@ export default async function EntryPage({
             <p className="mt-14 border-t border-hairline pt-6 text-[0.8125rem] leading-relaxed text-graphite">
               <strong className="font-medium text-ink">Research use only.</strong>{" "}
               Nothing in the Red Sky journal is guidance for human or veterinary use.
-              Questions about handling or reconstitution go to lab@redskybio.com.
+              Questions about handling or reconstitution go through the{" "}
+              <a href="/contact?topic=handling#message" className="text-ink decoration-sun underline-offset-4">
+                contact page
+              </a>
+              .
             </p>
           </div>
 

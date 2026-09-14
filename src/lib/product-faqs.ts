@@ -78,7 +78,7 @@ function upcomingFaqs(item: CatalogItem & { expected: string }): Faq[] {
     },
     {
       q: "Can I order a different fill or a bulk quantity ahead of release?",
-      a: `Yes, as a custom synthesis, with a certificate issued to your own lot. The catalogue fill will be ${item.fill} per vial; other fills and bulk quantities are quoted within one business day at lab@redskybio.com.`,
+      a: `Yes, as a custom synthesis, with a certificate issued to your own lot. The catalogue fill will be ${item.fill} per vial; other fills and bulk quantities are quoted within one business day through the contact page.`,
     },
     noAdvice(item),
   ];
@@ -112,7 +112,7 @@ export function productFaqs(item: CatalogItem): Faq[] {
     },
     {
       q: last ? "When is it back, and can I order a different fill?" : "How quickly does it ship, and can I order a different fill?",
-      a: `${lead(item)} The catalogue fill is ${item.fill} per vial; other fills, bulk quantities and custom synthesis are quoted within one business day at lab@redskybio.com.`,
+      a: `${lead(item)} The catalogue fill is ${item.fill} per vial; other fills, bulk quantities and custom synthesis are quoted within one business day through the contact page.`,
     },
     noAdvice(item),
   ];

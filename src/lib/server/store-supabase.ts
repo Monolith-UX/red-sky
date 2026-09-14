@@ -27,8 +27,9 @@ let client: SupabaseClient | null = null;
 
 function db() {
   if (!client) {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SECRET_KEY;
+    // The dashboard also shows the API address (…/rest/v1/); the client wants the project root.
+    const url = process.env.SUPABASE_URL?.trim().replace(/\/(rest\/v1\/?)?$/, "");
+    const key = process.env.SUPABASE_SECRET_KEY?.trim();
     if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY must both be set.");
     client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },

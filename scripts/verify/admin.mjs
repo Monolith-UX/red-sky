@@ -12,6 +12,62 @@ mkdirSync(SCRATCH, { recursive: true });
 rmSync(`${SCRATCH}/cdp-admin`, { recursive: true, force: true });
 writeFileSync(PDF, "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n");
 
+// E2E_STORE=supabase: the checks that look inside the store query Supabase instead (keys
+// from .env.local), and the run removes everything it wrote, including its test lot.
+let sb = null;
+if (process.env.E2E_STORE === "supabase") {
+  try { process.loadEnvFile(fileURLToPath(new URL("../../.env.local", import.meta.url))); } catch {}
+  const { createClient } = await import("@supabase/supabase-js");
+  sb = createClient(process.env.SUPABASE_URL.trim().replace(/\/(rest\/v1\/?)?$/, ""), process.env.SUPABASE_SECRET_KEY.trim(), { auth: { persistSession: false } });
+}
+const STARTED = new Date().toISOString();
+const EMAILS = ["customer-check@lab.org", "staff-check@lab.org"];
+const readFile = () => JSON.parse(readFileSync(STORE, "utf8"));
+
+/** The store, read the same way whichever one the server uses. */
+const S = {
+  async lot(slug) {
+    if (!sb) return readFile().lots?.[slug];
+    const r = (await sb.from("lots").select().eq("slug", slug).maybeSingle()).data;
+    return r && { ...r, purity: Number(r.purity), observedMass: Number(r.observed_mass) };
+  },
+  async userId(email) {
+    if (!sb) return Object.values(readFile().users).find((u) => u.email === email)?.id;
+    return (await sb.from("users").select("id").eq("email", email).maybeSingle()).data?.id;
+  },
+  async standing(owner) {
+    if (!sb) return readFile().orders[owner] ?? [];
+    return ((await sb.from("standing_orders").select().eq("owner", owner)).data ?? []).map((o) => ({ ...o, nextDispatch: o.next_dispatch }));
+  },
+  async makeDue(owner, day) {
+    if (!sb) {
+      const store = readFile();
+      store.orders[owner] = store.orders[owner].map((o) => ({ ...o, nextDispatch: day }));
+      return writeFileSync(STORE, JSON.stringify(store, null, 2));
+    }
+    await sb.from("standing_orders").update({ next_dispatch: day }).eq("owner", owner);
+  },
+  async shipments(owner) {
+    if (!sb) return (readFile().placed[owner] ?? []).filter((o) => o.source === "standing");
+    return (await sb.from("placed_orders").select().eq("owner", owner).eq("source", "standing")).data ?? [];
+  },
+  /** Supabase only: leave nothing behind, and above all not the test lot, which a build would publish. */
+  async cleanup() {
+    if (!sb) return;
+    const users = (await sb.from("users").select("id").in("email", EMAILS)).data ?? [];
+    for (const { id } of users) {
+      for (const t of ["favorites", "waitlist", "profiles", "carts", "placed_orders", "standing_orders", "retained"]) await sb.from(t).delete().eq("owner", id);
+      await sb.from("users").delete().eq("id", id);
+    }
+    await sb.from("lots").delete().eq("slug", "bpc-157").eq("lot", "RS-TEST-01");
+    await sb.storage.from("certificates").remove(["RS-TEST-01.pdf"]);
+    await sb.from("messages").delete().in("email", EMAILS);
+    await sb.from("admin_log").delete().in("actor", EMAILS);
+    await sb.from("attempts").delete().gte("at", STARTED);
+  },
+};
+await S.cleanup(); // a previous interrupted run
+
 const log = [];
 const check = (name, ok, detail = "") => log.push(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`);
 const bodyHas = (s) => `document.body.textContent.toLowerCase().includes(${JSON.stringify(s.toLowerCase())})`;
@@ -86,8 +142,7 @@ await page.upload('input[name="certificate"]', [PDF]);
 await clickText("Save and publish");
 check("a complete real lot saves", await waitFor(bodyHas("Saved. It goes live on the next deploy")), await page.eval(`document.querySelector('[role="alert"]')?.textContent ?? ""`));
 
-const db = JSON.parse(readFileSync(STORE, "utf8"));
-const row = db.lots?.["bpc-157"];
+const row = await S.lot("bpc-157");
 check("the store holds the lot as entered", row?.lot === "RS-TEST-01" && row.purity === 99.12 && row.observedMass === 1419.55 && row.analyst === "S.S." && row.sample === false && row.certificate === "RS-TEST-01.pdf", JSON.stringify(row ?? {}).slice(0, 160));
 const pdf = await page.eval(`fetch("/api/certificate/RS-TEST-01").then(async r => ({ status: r.status, type: r.headers.get("content-type"), head: (await r.text()).slice(0, 5) }))`);
 check("the certificate PDF is served", pdf.status === 200 && pdf.type === "application/pdf" && pdf.head === "%PDF-", JSON.stringify(pdf));
@@ -116,25 +171,24 @@ await page.type('#profile input[name="address.line1"]', "9 New Bench Lane");
 check("the address form offers to move both standing orders", await page.eval(bodyHas("Send all 2 standing orders here too")));
 await clickText("Save address");
 check("saving moves the standing orders", await waitFor(bodyHas("all 2 standing orders ship there")));
-let store = JSON.parse(readFileSync(STORE, "utf8"));
-const staffId = Object.values(store.users).find((u) => u.email === "staff-check@lab.org").id;
-check("each standing order holds the new address", store.orders[staffId].every((o) => o.address?.line1 === "9 New Bench Lane"));
+const staffId = await S.userId("staff-check@lab.org");
+const moved = await S.standing(staffId);
+check("each standing order holds the new address", moved.length === 2 && moved.every((o) => o.address?.line1 === "9 New Bench Lane"));
 
 // Bring both due to today, as if the month had turned, so they appear this week.
 const today = new Date().toISOString().slice(0, 10);
-store.orders[staffId] = store.orders[staffId].map((o) => ({ ...o, nextDispatch: today }));
-writeFileSync(STORE, JSON.stringify(store, null, 2));
+await S.makeDue(staffId, today);
 await page.goto("/admin", 3000);
 check("the pair shows as one shipment due, with the stack saving", await page.eval(`(() => { const t = document.querySelector("#due")?.textContent ?? ""; return t.includes("BPC-157") && t.includes("TB-500") && t.includes("$96.00") && t.includes("$14.00 stack saving") && t.includes("9 New Bench Lane"); })()`));
 await clickText("Record shipment");
 check("recording confirms the shipment on the page", await waitFor(bodyHas("unpaid. Each of its standing orders moved to next")));
-store = JSON.parse(readFileSync(STORE, "utf8"));
-const shipments = (store.placed[staffId] ?? []).filter((o) => o.source === "standing");
+const shipments = await S.shipments(staffId);
+const advanced = await S.standing(staffId);
 check(
   "one shipment recorded, and both orders move to next month",
-  shipments.length === 1 && shipments[0].totals.today === 96 && shipments[0].address.line1 === "9 New Bench Lane" &&
-    store.orders[staffId].every((o) => o.nextDispatch > today),
-  `${shipments.length} shipments; next ${store.orders[staffId].map((o) => o.nextDispatch).join(", ")}`,
+  shipments.length === 1 && Number(shipments[0].totals.today) === 96 && shipments[0].address.line1 === "9 New Bench Lane" &&
+    advanced.every((o) => o.nextDispatch > today),
+  `${shipments.length} shipments; next ${advanced.map((o) => o.nextDispatch).join(", ")}`,
 );
 
 /* ── Reset a customer's password ── */
@@ -157,4 +211,5 @@ check("the customer signs in with the temporary password", await waitFor(`docume
 
 check("no page or console errors", page.errors.length === 0, page.errors.slice(0, 3).join(" // "));
 await page.close();
+await S.cleanup();
 console.log(log.join("\n"));

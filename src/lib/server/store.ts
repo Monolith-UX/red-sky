@@ -4,12 +4,14 @@ import path from "node:path";
 import {
   EMPTY_PROFILE,
   normalizeCart,
+  type Address,
   type AvatarType,
   type CartLine,
   type PlacedOrder,
   type Profile,
   type StandingOrder,
 } from "@/lib/account";
+import type { Story } from "@/lib/stories";
 
 /**
  * Local persistence for everything that belongs to a visitor rather than to
@@ -62,6 +64,8 @@ type Db = {
   placed: Record<string, PlacedOrder[]>;
   orders: Record<string, StandingOrder[]>;
   messages: ContactMessage[];
+  stories: Story[];
+  subscribers: { email: string; joined: string }[];
 };
 
 const DIR = path.join(process.cwd(), ".data");
@@ -78,6 +82,8 @@ const empty = (): Db => ({
   placed: {},
   orders: {},
   messages: [],
+  stories: [],
+  subscribers: [],
 });
 
 async function read(): Promise<Db> {
@@ -278,6 +284,12 @@ export function saveProfile(
   });
 }
 
+export function saveAddress(owner: string, address: Address) {
+  return update((db) => {
+    db.profiles[owner] = { ...EMPTY_PROFILE, ...db.profiles[owner], address };
+  });
+}
+
 const EXT: Record<AvatarType, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
@@ -368,6 +380,66 @@ export function changeOrder(
       ? list.map((o, i) => (i === at ? next : o))
       : list.filter((_, i) => i !== at);
     return true;
+  });
+}
+
+/* ── Client stories ────────────────────────────────────────── */
+
+export function addStory(story: Story) {
+  return update((db) => {
+    db.stories.push(story);
+    return story.id;
+  });
+}
+
+export async function storiesWith(...statuses: Story["status"][]) {
+  return (await read()).stories
+    .filter((s) => statuses.includes(s.status))
+    .sort((a, b) => (b.published ?? b.received).localeCompare(a.published ?? a.received));
+}
+
+export function setStoryStatus(id: string, status: Story["status"]) {
+  return update((db) => {
+    const story = db.stories.find((s) => s.id === id);
+    if (!story) return false;
+    story.status = status;
+    story.published = status === "published" ? new Date().toISOString() : null;
+    return true;
+  });
+}
+
+/** Whether an owner has placed an order that included any of these sequences. */
+export async function hasOrdered(owner: string, slugs: string[]) {
+  const orders = (await read()).placed[owner] ?? [];
+  return orders.some((o) => o.lines.some((l) => slugs.includes(l.slug)));
+}
+
+/* ── Account housekeeping ──────────────────────────────────── */
+
+export async function placedOrders(owner: string): Promise<PlacedOrder[]> {
+  return [...((await read()).placed[owner] ?? [])].sort((a, b) => b.placed.localeCompare(a.placed));
+}
+
+export function setPasswordHash(user: string, passwordHash: string) {
+  return update((db) => {
+    if (db.users[user]) db.users[user].passwordHash = passwordHash;
+  });
+}
+
+/** Signs a user out everywhere except the session in `keep`. */
+export function endOtherSessions(user: string, keep: string | null) {
+  return update((db) => {
+    for (const [hash, s] of Object.entries(db.sessions)) {
+      if (s.user === user && hash !== keep) delete db.sessions[hash];
+    }
+  });
+}
+
+export function subscribe(email: string) {
+  return update((db) => {
+    const known = db.subscribers.some((s) => s.email === email);
+    if (!known) db.subscribers.push({ email, joined: new Date().toISOString() });
+    return !known;
   });
 }
 

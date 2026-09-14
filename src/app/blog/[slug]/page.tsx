@@ -5,6 +5,7 @@ import { ViewTransition } from "react";
 import { Prose } from "@/components/prose";
 import { TocAside, type TocItem } from "@/components/toc-aside";
 import { Faqs } from "@/components/faqs";
+import { MobileToc } from "@/components/mobile-toc";
 import { faqsFor, headingId } from "@/lib/faqs";
 import { byDate, categoryLabel, getPost, longDate, posts } from "@/lib/posts";
 
@@ -129,6 +130,7 @@ export default async function EntryPage({
       <div className="shell border-t border-hairline py-14 md:py-16">
         <div className="grid12 gap-y-14">
           <div className="col-span-12 text-[1.0625rem] leading-[1.75] lg:col-span-8">
+            <MobileToc items={toc} />
             <Prose blocks={post.body} />
 
             <div className="mt-16">

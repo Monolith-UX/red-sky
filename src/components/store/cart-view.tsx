@@ -4,17 +4,20 @@ import Link from "next/link";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { placeOrder, type CheckoutState } from "@/app/cart/actions";
 import { Vial } from "@/components/catalog/vial";
-import { Check, FormMessage } from "@/components/forms/fields";
+import { Check, Field, FormMessage } from "@/components/forms/fields";
 import {
+  ADDRESS_FIELDS,
   DISPATCH_DAYS,
   dayLabel,
   dispatchDate,
+  type Address,
   type CartLine,
   type Plan,
   type Weekday,
 } from "@/lib/account";
 import { type CatalogItem, canOrder, getItem, money, waitingFor } from "@/lib/catalog";
 import { cartCount, changeCart, refreshSession, useSession } from "@/lib/session-client";
+import { STACKS, savingFor, stackSavings } from "@/lib/stacks";
 import { QuantityStepper } from "./add-to-cart";
 
 type Row = { line: CartLine; item: CatalogItem; key: string };
@@ -31,11 +34,20 @@ function rows(lines: CartLine[]): Row[] {
   });
 }
 
-export function CartView({ initial, signedIn }: { initial: CartLine[]; signedIn: boolean }) {
+export function CartView({
+  initial,
+  signedIn,
+  address,
+}: {
+  initial: CartLine[];
+  signedIn: boolean;
+  address: Address | null;
+}) {
   const session = useSession();
   const lines = session.status === "ready" ? session.cart : initial;
   const [state, action, pending] = useActionState<CheckoutState, FormData>(placeOrder, {});
   const [weekday, setWeekday] = useState<Weekday>(2);
+  const [editing, setEditing] = useState(!address);
   const dayId = useId();
 
   useEffect(() => {
@@ -47,12 +59,17 @@ export function CartView({ initial, signedIn }: { initial: CartLine[]; signedIn:
   const all = rows(lines);
   const live = all.filter((r) => canOrder(r.item));
   const gone = all.filter((r) => !canOrder(r.item));
+  const liveLines = live.map((r) => r.line);
   const sum = (plan: Plan) =>
     live.filter((r) => r.line.plan === plan).reduce((s, r) => s + r.item.price * r.line.quantity, 0);
   const vials = (plan: Plan) =>
     live.filter((r) => r.line.plan === plan).reduce((s, r) => s + r.line.quantity, 0);
+  const savings = stackSavings(liveLines);
   const once = sum("once");
   const monthly = sum("monthly");
+  const today = once + monthly - savingFor(savings);
+  const everyMonth = monthly - savingFor(savings, "monthly");
+  const shown = { ...address, ...state.address };
 
   if (!all.length) {
     return (
@@ -85,7 +102,7 @@ export function CartView({ initial, signedIn }: { initial: CartLine[]; signedIn:
 
         <ul role="list">
           {live.map((r) => (
-            <LineRow key={r.key} row={r} weekday={weekday} />
+            <LineRow key={r.key} row={r} weekday={weekday} lines={liveLines} />
           ))}
         </ul>
 
@@ -107,10 +124,7 @@ export function CartView({ initial, signedIn }: { initial: CartLine[]; signedIn:
                     <span className="t-data ml-3 text-[0.75rem] text-graphite">{waitingFor(r.item)}</span>
                   </span>
                   <span className="flex items-center gap-4">
-                    <Link
-                      href={`/catalog/${r.item.slug}`}
-                      className="text-[0.8125rem] decoration-sun underline-offset-4"
-                    >
+                    <Link href={`/catalog/${r.item.slug}`} className="text-[0.8125rem] decoration-sun underline-offset-4">
                       Join the waitlist
                     </Link>
                     <button
@@ -150,14 +164,26 @@ export function CartView({ initial, signedIn }: { initial: CartLine[]; signedIn:
             </dt>
             <dd className="t-data">{money(monthly)}</dd>
           </div>
+          {savings.map((s) => (
+            <div key={`${s.id}-${s.plan}`} className="flex items-baseline justify-between gap-4 border-b border-hairline py-3">
+              <dt>
+                {s.name}{" "}
+                <span className="t-data text-[0.75rem] text-graphite">
+                  · {s.sets} {s.sets === 1 ? "set" : "sets"}
+                  {s.plan === "monthly" ? ", every month" : ""}
+                </span>
+              </dt>
+              <dd className="t-data">−{money(s.amount)}</dd>
+            </div>
+          ))}
           <div className="flex items-baseline justify-between gap-4 py-4">
             <dt className="font-medium">Due today</dt>
-            <dd className="t-metric text-[1.75rem]">{money(once + monthly)}</dd>
+            <dd className="t-metric text-[1.75rem]">{money(today)}</dd>
           </div>
           {monthly > 0 && (
             <div className="flex items-baseline justify-between gap-4 border-t border-ink py-3">
               <dt className="font-medium">Then every month</dt>
-              <dd className="t-data text-[1.0625rem] font-medium">{money(monthly)}</dd>
+              <dd className="t-data text-[1.0625rem] font-medium">{money(everyMonth)}</dd>
             </div>
           )}
         </dl>
@@ -193,8 +219,62 @@ export function CartView({ initial, signedIn }: { initial: CartLine[]; signedIn:
           </p>
 
           {signedIn ? (
-            <form action={action} className="mt-5 flex flex-col gap-4">
+            <form action={action} noValidate className="mt-5 flex flex-col gap-4">
               <input type="hidden" name="weekday" value={weekday} />
+
+              <fieldset className="border-t border-hairline pt-4">
+                <legend className="t-label float-left mb-3 flex w-full items-baseline justify-between text-graphite">
+                  Deliver to
+                  {address && !editing && (
+                    <button
+                      type="button"
+                      onClick={() => setEditing(true)}
+                      className="normal-case tracking-normal text-[0.8125rem] text-ink underline decoration-hairline underline-offset-4 hover:decoration-ink"
+                    >
+                      Change
+                    </button>
+                  )}
+                </legend>
+                <div className="clear-both">
+                  {address && !editing ? (
+                    <>
+                      <address className="text-[0.875rem] not-italic leading-relaxed">
+                        {address.recipient}
+                        {address.organisation && <><br />{address.organisation}</>}
+                        <br />
+                        {address.line1}
+                        {address.line2 && `, ${address.line2}`}
+                        <br />
+                        {address.city}, {address.region} {address.postal}
+                        <br />
+                        {address.country}
+                      </address>
+                      {ADDRESS_FIELDS.map((f) => (
+                        <input key={f.key} type="hidden" name={`address.${f.key}`} value={address[f.key]} />
+                      ))}
+                    </>
+                  ) : (
+                    <div className="grid gap-3.5">
+                      {ADDRESS_FIELDS.map((f) => (
+                        <Field
+                          key={f.key}
+                          label={f.label}
+                          name={`address.${f.key}`}
+                          autoComplete={`shipping ${f.autoComplete}`}
+                          maxLength={f.max}
+                          defaultValue={shown[f.key] ?? (f.key === "country" ? "United States" : "")}
+                          optional={!f.required}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-3 text-[0.75rem] leading-relaxed text-graphite">
+                    Name someone who is in the building to receive it: most cold-chain excursions happen
+                    at a reception desk.
+                  </p>
+                </div>
+              </fieldset>
+
               <Check name="attest">
                 These materials are for in-vitro laboratory research only and will not be
                 administered to a person or an animal. I accept the{" "}
@@ -209,7 +289,7 @@ export function CartView({ initial, signedIn }: { initial: CartLine[]; signedIn:
                 disabled={pending || !live.length}
                 className="btn btn-primary w-full disabled:opacity-60"
               >
-                {pending ? "Placing the order…" : `Place order · ${money(once + monthly)}`}
+                {pending ? "Placing the order…" : `Place order · ${money(today)}`}
               </button>
             </form>
           ) : (
@@ -228,7 +308,7 @@ export function CartView({ initial, signedIn }: { initial: CartLine[]; signedIn:
   );
 }
 
-function LineRow({ row, weekday }: { row: Row; weekday: Weekday }) {
+function LineRow({ row, weekday, lines }: { row: Row; weekday: Weekday; lines: CartLine[] }) {
   const { line, item } = row;
   const group = useId();
   const [failed, setFailed] = useState(false);
@@ -236,6 +316,11 @@ function LineRow({ row, weekday }: { row: Row; weekday: Weekday }) {
   const run = async (op: Parameters<typeof changeCart>[0]) => {
     setFailed(!(await changeCart(op)));
   };
+
+  // A stack this sequence belongs to, and whether its partner is here on the same plan.
+  const stack = STACKS.find((s) => (s.slugs as readonly string[]).includes(item.slug));
+  const partner = stack ? getItem(stack.slugs.find((s) => s !== item.slug)!) : undefined;
+  const paired = partner && lines.some((l) => l.slug === partner.slug && l.plan === line.plan);
 
   return (
     <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-4 gap-y-4 border-b border-hairline py-6 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:gap-x-6">
@@ -289,6 +374,31 @@ function LineRow({ row, weekday }: { row: Row; weekday: Weekday }) {
             ? `Ships with this order, then on the first ${dayLabel(weekday)} of every month.`
             : "Ships once, from the current lot."}
         </p>
+
+        {stack && partner && canOrder(partner) && (
+          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8125rem] leading-relaxed">
+            <span className="dot" aria-hidden="true" />
+            {paired ? (
+              <span>
+                Part of the {stack.name} — {money(stack.saving)} off each set.
+              </span>
+            ) : (
+              <>
+                <span>
+                  Add {partner.name} {line.plan === "monthly" ? "monthly " : ""}for the {stack.name}:{" "}
+                  {money(stack.saving)} off the pair.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => run({ op: "add", slug: partner.slug, plan: line.plan, quantity: line.quantity })}
+                  className="font-medium underline decoration-sun underline-offset-4"
+                >
+                  Add {partner.name}
+                </button>
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       <p className="t-data col-start-2 text-[1.0625rem] font-medium sm:col-start-3 sm:row-start-1 sm:text-right">
@@ -354,16 +464,31 @@ function Placed({ placed }: { placed: NonNullable<CheckoutState["placed"]> }) {
               </dd>
             </div>
           )}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 border-t border-hairline py-4">
+            <dt className="t-label text-graphite">Today</dt>
+            <dd className="t-data text-[1.125rem] font-medium">
+              {money(placed.today)}
+              {placed.saving > 0 && (
+                <span className="ml-2 text-[0.8125rem] font-normal text-graphite">
+                  incl. {money(placed.saving)} stack saving
+                </span>
+              )}
+            </dd>
+          </div>
+          {monthly.length > 0 && (
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 border-t border-hairline py-4">
+              <dt className="t-label text-graphite">Then every month</dt>
+              <dd className="t-data text-[1.125rem] font-medium">{money(placed.monthly)}</dd>
+            </div>
+          )}
         </dl>
         <p className="t-data mt-4 border-t border-hairline pt-4 text-[0.75rem] leading-relaxed text-graphite">
           Payment is not connected in this build, so nothing has been charged and nothing will ship.
         </p>
         <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
-          {monthly.length > 0 && (
-            <Link href="/account#auto-delivery" className="btn btn-primary">
-              Manage standing orders
-            </Link>
-          )}
+          <Link href={monthly.length ? "/account#auto-delivery" : "/account#orders"} className="btn btn-primary">
+            {monthly.length ? "Manage standing orders" : "See your orders"}
+          </Link>
           <Link href="/catalog" className="btn btn-ghost">
             Back to the catalogue
           </Link>

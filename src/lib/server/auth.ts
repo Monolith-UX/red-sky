@@ -115,6 +115,11 @@ async function current(): Promise<{ hash: string; record: SessionRecord } | null
   return record ? { hash, record } : null;
 }
 
+/** The hash identifying this browser's session, so it can be kept when the others are ended. */
+export async function currentSessionHash() {
+  return (await current())?.hash ?? null;
+}
+
 /** How long this device stays signed in, for the account page to say so plainly. */
 export async function sessionInfo() {
   const session = await current();

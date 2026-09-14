@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { method } from "@/lib/content";
 import { SectionHeader } from "./section-header";
 
@@ -32,6 +33,16 @@ export function MethodSection() {
             </li>
           ))}
         </ol>
+
+        <Link
+          href="/testing"
+          className="mt-12 inline-flex h-11 items-center gap-2.5 text-[0.875rem] font-medium no-underline transition-colors duration-150 hover:text-sun"
+        >
+          What each check proves, and what it cannot
+          <svg width="16" height="10" viewBox="0 0 16 10" fill="none" aria-hidden="true">
+            <path d="M0 5h14M10 1l4 4-4 4" stroke="currentColor" strokeWidth="1.3" />
+          </svg>
+        </Link>
       </div>
     </section>
   );

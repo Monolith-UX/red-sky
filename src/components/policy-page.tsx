@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MobileToc } from "@/components/mobile-toc";
 import { Prose } from "@/components/prose";
 import { TocAside, type TocItem } from "@/components/toc-aside";
 import { headingId } from "@/lib/faqs";
@@ -36,6 +37,7 @@ export function PolicyPage({ slug }: { slug: PolicySlug }) {
       <div className="shell border-t border-hairline py-14 md:py-16">
         <div className="grid12 gap-y-14">
           <div className="col-span-12 text-[1.0625rem] leading-[1.75] lg:col-span-8">
+            <MobileToc items={toc} />
             <Prose blocks={policy.body} />
 
             <p className="mt-14 border-t border-hairline pt-6 text-[0.8125rem] leading-relaxed text-graphite">

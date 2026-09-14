@@ -1,0 +1,206 @@
+// End-to-end checks across the storefront. Run: BASE_URL=http://localhost:PORT node scripts/verify/e2e.mjs
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { launch } from "./cdp.mjs";
+
+const SCRATCH = fileURLToPath(new URL("./out", import.meta.url));
+const STORE = fileURLToPath(new URL("../../.data/store.json", import.meta.url));
+rmSync(`${SCRATCH}/cdp-e2e3`, { recursive: true, force: true });
+mkdirSync(SCRATCH, { recursive: true });
+
+const log = [];
+const check = (name, ok, detail = "") => log.push(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`);
+const tag = (page, js, name) =>
+  page.eval(`(() => { const el = (${js}); if (el) el.setAttribute("data-e2e", ${JSON.stringify(name)}); return !!el; })()`);
+const waitFor = async (page, js, ms = 8000) => {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    try { if (await page.eval(`!!(${js})`)) return true; } catch {}
+    await page.sleep(150);
+  }
+  return false;
+};
+const bodyHas = (s) => `document.body.textContent.toLowerCase().includes(${JSON.stringify(s.toLowerCase())})`;
+const buttonByText = (t) => `[...document.querySelectorAll("button, a")].find(b => b.textContent.trim().startsWith(${JSON.stringify(t)}))`;
+
+let page = await launch({ profile: "cdp-e2e3", port: 9337 });
+await page.viewport(1280, 900);
+
+/* ── Navigation ────────────────────────────────────────────── */
+await page.goto("/", 2500);
+const navLabels = await page.eval(`[...document.querySelectorAll('nav[aria-label="Main"] a')].map(a => a.textContent.trim())`);
+check("main nav order", JSON.stringify(navLabels) === JSON.stringify(["About Us", "Catalog", "Testing", "Handling", "Client Stories", "Blog", "Contact"]), navLabels.join(" · "));
+await page.viewport(1024, 800);
+await page.sleep(400);
+const navFit = await page.eval(`(() => { const nav = document.querySelector('nav[aria-label="Main"]').getBoundingClientRect(); const right = document.querySelector('header a[href="/account"]').getBoundingClientRect(); const logo = document.querySelector('header a[href="/"]').getBoundingClientRect(); return { gapLeft: Math.round(nav.left - logo.right), gapRight: Math.round(right.left - nav.right) }; })()`);
+check("nav fits at 1024px", navFit.gapLeft > 8 && navFit.gapRight > 8, JSON.stringify(navFit));
+await page.viewport(1280, 900);
+
+/* ── Stack slide adds both vials ───────────────────────────── */
+await page.click('button[aria-label^="Show slide 4"]');
+await page.sleep(900);
+await tag(page, buttonByText("Add the stack"), "stack");
+await page.click('[data-e2e="stack"]');
+check("stack button adds both vials", await waitFor(page, `document.querySelector('a[href="/cart"]')?.getAttribute("aria-label") === "Cart, 2 vials"`));
+
+/* ── Newsletter ────────────────────────────────────────────── */
+await page.type("#newsletter-email", "releases@lab.org");
+await page.click('#newsletter button[type="submit"]');
+check("newsletter stores the address", await waitFor(page, bodyHas("You are on the list") + " || " + bodyHas("already on the list")));
+
+/* ── Waitlist bell with the email popover ──────────────────── */
+await page.goto("/catalog", 2500);
+const bell = 'button[aria-label="Waitlist for Sermorelin"]';
+check("bell only on unorderable cards", (await page.eval(`document.querySelectorAll('button[aria-label^="Waitlist for"]').length`)) === 3);
+await page.click(bell);
+check("bell opens the email form", await waitFor(page, `document.querySelector('form[aria-label="Join the waitlist for Sermorelin"]')`));
+await page.shot("e2e2-bell-popover", { clip: await page.eval(`(() => { const r = document.querySelector('${bell}').closest("article").getBoundingClientRect(); return { x: Math.max(0, r.x - 200), y: r.y + scrollY - 10, width: r.width + 220, height: 360 }; })()`) });
+await page.type('form[aria-label="Join the waitlist for Sermorelin"] input[type="email"]', "bell@lab.org");
+await page.click('form[aria-label="Join the waitlist for Sermorelin"] button[type="submit"]');
+check("bell joins and fills", await waitFor(page, `document.querySelector('${bell}').getAttribute("aria-pressed") === "true"`));
+await page.hover(bell);
+const bellTip = await page.eval(`document.getElementById(document.querySelector('${bell}').getAttribute("aria-describedby"))?.textContent`);
+check("bell tip counts who is waiting", /On the waitlist · \d+ waiting/.test(bellTip ?? ""), bellTip);
+
+/* ── Sign up ───────────────────────────────────────────────── */
+await page.goto("/account", 2500);
+const email = `e2e2+${Date.now()}@lab.org`;
+const su = `section[aria-labelledby="sign-up-heading"]`;
+await page.type(`${su} input[name="name"]`, "Marcus Bell");
+await page.type(`${su} input[name="email"]`, email);
+await page.type(`${su} input[name="password"]`, "the column never lies");
+await page.click(`${su} input[name="terms"]`);
+await page.click(`${su} button[type="submit"]`);
+check("sign-up lands on the dashboard", await waitFor(page, `document.querySelector("h1")?.textContent === "Marcus Bell"`, 15000));
+
+/* ── Cart: stack saving, plan split, cross-sell ────────────── */
+await page.goto("/cart", 3000);
+check("stack saving applies to a one-time pair", await waitFor(page, bodyHas("Wolverine Stack") + ` && document.body.textContent.includes("−$14.00")`));
+const dueBefore = await page.eval(`[...document.querySelectorAll("aside dl div")].find(d => d.textContent.includes("Due today"))?.querySelector("dd")?.textContent`);
+check("due today is the $96 stack price", dueBefore === "$96.00", dueBefore);
+await tag(page, `[...document.querySelectorAll("li")].find(li => li.textContent.includes("BPC-157") && li.querySelector("fieldset"))?.querySelector("label:nth-of-type(2)")`, "bpc-monthly");
+await page.click('[data-e2e="bpc-monthly"]');
+check("plans split the pair and offer the partner", await waitFor(page, bodyHas("Add TB-500 monthly for the Wolverine Stack")));
+await tag(page, buttonByText("Add TB-500"), "add-partner");
+await page.click('[data-e2e="add-partner"]');
+check("adding the partner restores a monthly saving", await waitFor(page, bodyHas("1 set, every month")));
+
+for (const [field, value] of [["recipient", "Marcus Bell"], ["line1", "1 Lab Way"], ["city", "Boston"], ["region", "Massachusetts"], ["postal", "02115"]]) {
+  await page.type(`input[name="address.${field}"]`, value);
+}
+await page.click('input[name="attest"]');
+await page.shot("e2e2-cart", { full: true });
+await tag(page, buttonByText("Place order"), "place");
+await page.click('[data-e2e="place"]');
+check("order placed with totals", await waitFor(page, bodyHas("Order recorded") + " && " + bodyHas("stack saving"), 15000));
+
+/* ── Account: orders, address, password ───────────────────── */
+await page.goto("/account", 3000);
+check("order history lists the order", await page.eval(`/ORD-\\d{6}-[A-Z0-9]{6}/.test(document.querySelector("#orders")?.textContent ?? "")`));
+check("delivery address saved", await page.eval(bodyHas("1 Lab Way")));
+await page.type('input[name="current"]', "wrong password here");
+await page.type('input[name="replacement"]', "an even better passphrase");
+await tag(page, buttonByText("Change password"), "pw");
+await page.click('[data-e2e="pw"]');
+check("wrong current password is refused", await waitFor(page, bodyHas("The current password is not right")));
+await page.type('input[name="current"]', "the column never lies");
+await page.type('input[name="replacement"]', "an even better passphrase");
+await page.click('[data-e2e="pw"]');
+check("password changes", await waitFor(page, bodyHas("Password changed")));
+
+/* ── Stories ───────────────────────────────────────────────── */
+await page.goto("/stories", 3000);
+check("stories page shows the template until approval", await page.eval(bodyHas("Template — how a published story is set")));
+const fillStory = async (title, story, outcome) => {
+  await page.type('input[name="title"]', title);
+  await page.eval(`document.querySelector('select[name="slugs"]').value = "bpc-157"`);
+  await page.type('textarea[name="story"]', story);
+  await page.type('textarea[name="outcome"]', outcome);
+  await page.type('input[name="role"]', "Method development lead");
+  await page.click('input[name="own-work"]');
+  await page.click('input[name="no-human-use"]');
+  await page.click('input[name="publish"]');
+  await tag(page, buttonByText("Send the story for review"), "send-story");
+  await page.click('[data-e2e="send-story"]');
+};
+await fillStory(
+  "Three lots, one column, no surprises",
+  "We were building a stability-indicating HPLC method and needed a reference lot whose impurity profile was documented rather than guessed. We ran RS-2601-B against our own C18 gradient and compared the integration with the released trace, peak for peak, including the deletion sequence at 11.6 minutes.",
+  "The method validated a month early, because the reference behaved exactly as its certificate said it would.",
+);
+check("clean story received with a verified mark", await waitFor(page, bodyHas("A person reads it next") + " && " + bodyHas("verified order mark"), 12000));
+await page.goto("/stories", 2500);
+await fillStory(
+  "My recovery journey",
+  "I took BPC-157 for my knee injury and felt better within a week. I injected it daily and my pain went down, so I wanted to share my progress with everyone reading this page about how well it worked for me.",
+  "My knee healed.",
+);
+check("personal-use story is flagged", await waitFor(page, bodyHas("read as use in a person or an animal"), 12000));
+
+await page.goto("/stories/review", 2500);
+check("review queue refuses non-moderators", await page.eval(bodyHas("This queue is for moderators")));
+
+// Stand in for a moderator: approve the clean story directly in the store.
+const db = JSON.parse(readFileSync(STORE, "utf8"));
+const clean = db.stories.find((s) => s.title === "Three lots, one column, no surprises" && s.status === "pending");
+if (clean) {
+  clean.status = "published";
+  clean.published = new Date().toISOString();
+  writeFileSync(STORE, JSON.stringify(db, null, 2));
+}
+await page.goto("/stories", 3000);
+check("an approved story renders with its verified mark", await page.eval(bodyHas("Three lots, one column, no surprises") + " && " + bodyHas("Verified order")));
+check("a flagged story never renders", !(await page.eval(bodyHas("My recovery journey"))));
+await page.shot("e2e2-stories", { clip: { x: 0, y: 0, width: 1280, height: 1700 } });
+
+/* ── Certificates, assistant, 404 ──────────────────────────── */
+await page.goto("/certificates", 2500);
+await page.type('input[type="search"]', "RS-2604-C");
+check("lot lookup shows the certificate summary", await waitFor(page, `document.querySelector('section[aria-label="Certificate summary for lot RS-2604-C"]')`));
+await page.shot("e2e2-certificates", { clip: { x: 0, y: 500, width: 1280, height: 900 } });
+
+await page.click('button[aria-label="Open the bench assistant"]');
+await page.type("#bench-input", "What is lot RS-2601-B?");
+await page.key("Enter", "Enter", 13);
+check("assistant answers a lot lookup from data", await waitFor(page, `[...document.querySelectorAll('[role="dialog"] p')].some(p => p.textContent.includes("99.47%") && p.textContent.includes("Read its certificate"))`));
+await page.type("#bench-input", "how much should I inject for my knee");
+await page.key("Enter", "Enter", 13);
+check("assistant still refuses dosing", await waitFor(page, `[...document.querySelectorAll('[role="dialog"] p')].some(p => p.textContent.includes("I can't help with that one"))`));
+const catalogueAnswer = await (async () => {
+  await page.type("#bench-input", "how many products do you sell");
+  await page.key("Enter", "Enter", 13);
+  await page.sleep(900);
+  return page.eval(`[...document.querySelectorAll('[role="dialog"] [aria-live] p')].map(p => p.textContent).at(-1)`);
+})();
+check("assistant counts the real catalogue", /^26 sequences/.test(catalogueAnswer?.replace(/^Assistant: /, "") ?? ""), catalogueAnswer?.slice(0, 80));
+
+const res = await page.eval(`fetch("/no-such-page").then(r => r.status)`);
+await page.goto("/no-such-page", 2000);
+check("404 page with status 404", res === 404 && (await page.eval(bodyHas("Nothing is filed under that address"))), `status ${res}`);
+
+for (const path of ["/about", "/testing", "/handling"]) {
+  await page.goto(path, 2000);
+  const h1 = await page.eval(`document.querySelector("h1")?.textContent`);
+  check(`${path} renders`, !!h1, h1);
+  await page.shot(`e2e2-page${path.replace("/", "-")}`, { clip: { x: 0, y: 0, width: 1280, height: 1600 } });
+}
+
+/* ── Narrow screens ────────────────────────────────────────── */
+const widths = [];
+for (const w of [320, 390]) {
+  await page.viewport(w, 800, true);
+  for (const path of ["/", "/about", "/catalog", "/catalog/sermorelin", "/testing", "/handling", "/certificates", "/stories", "/blog/reconstitution", "/cart", "/account", "/contact", "/sitemap", "/terms", "/no-such-page"]) {
+    await page.goto(path, 1300);
+    const over = await page.eval(`document.documentElement.scrollWidth - document.documentElement.clientWidth`);
+    if (over !== 0) widths.push(`${w}${path}:${over}`);
+  }
+}
+check("no horizontal overflow at 320 and 390px", widths.length === 0, widths.join(" "));
+await page.viewport(390, 844, true);
+await page.goto("/blog/reconstitution", 2000);
+check("mobile contents list above the article", await page.eval(`!!document.querySelector("main details summary") && getComputedStyle(document.querySelector("main details")).display !== "none"`));
+await page.shot("e2e2-mobile-toc", { clip: { x: 0, y: 0, width: 390, height: 1200 } });
+
+check("no page or console errors", page.errors.length === 0, page.errors.slice(0, 4).join(" // "));
+await page.close();
+console.log(log.join("\n"));

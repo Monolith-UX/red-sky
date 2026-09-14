@@ -16,6 +16,7 @@ import { clean, isEmail } from "@/lib/forms";
 import {
   allowAttempt,
   clearAttempts,
+  currentSessionHash,
   currentUser,
   endSession,
   hashPassword,
@@ -25,11 +26,14 @@ import {
 import {
   changeOrder,
   createUser,
+  endOtherSessions,
   findUserByEmail,
+  getUser,
   mergeOwner,
   removeAvatar as dropAvatar,
   saveAvatar,
   saveProfile as writeProfile,
+  setPasswordHash,
 } from "@/lib/server/store";
 import { readVisitor } from "@/lib/server/visitor";
 
@@ -135,6 +139,39 @@ export async function signUp(_: FormState, form: FormData): Promise<FormState> {
 export async function signOut() {
   await endSession();
   redirect("/account");
+}
+
+export async function changePassword(_: FormState, form: FormData): Promise<FormState> {
+  const user = await currentUser();
+  if (!user) return { error: "Your session has ended. Sign in again to change the password." };
+
+  const current = typeof form.get("current") === "string" ? String(form.get("current")) : "";
+  const replacement = typeof form.get("replacement") === "string" ? String(form.get("replacement")) : "";
+
+  if (replacement.length < MIN_PASSWORD) {
+    return { error: `Use a new password of at least ${MIN_PASSWORD} characters.` };
+  }
+  if (replacement.length > 200) {
+    return { error: "That password is longer than we accept. Keep it under 200 characters." };
+  }
+  if (!allowAttempt(`password:${user.id}`)) {
+    return { error: "Too many attempts. Wait ten minutes and try again." };
+  }
+
+  const record = await getUser(user.id);
+  if (!(await verifyPassword(current, record?.passwordHash ?? null))) {
+    return { error: "The current password is not right." };
+  }
+
+  await setPasswordHash(user.id, await hashPassword(replacement));
+  const everywhere = form.get("everywhere") === "on";
+  if (everywhere) await endOtherSessions(user.id, await currentSessionHash());
+  return {
+    ok: true,
+    message: everywhere
+      ? "Password changed, and every other device has been signed out."
+      : "Password changed.",
+  };
 }
 
 /* ── Profile and avatar ────────────────────────────────────── */

@@ -42,9 +42,12 @@ export const policies: Record<PolicySlug, Policy> = {
       {
         t: "list",
         items: [
-          "Account and order data: name, organisation, email address, telephone number, billing and delivery addresses, and the contents of your orders.",
+          "Account and order data: name, organisation, email address, telephone number, billing and delivery addresses, and the contents of your orders, including standing orders and the dispatch day you chose.",
+          "Sign-in data: a salted hash of your password, never the password itself, and a hash of the token that keeps a device signed in.",
+          "A profile photo, if you upload one. It is cropped and re-encoded in your browser before it is sent, so the original file and any location data inside it never reach us.",
+          "What you choose to save: favorites, waitlists and your cart. Before you sign in these are held against an anonymous identifier for your browser, and they move into your account when you do.",
           "Payment data: handled by our payment processor. We receive the last four digits of the card and the authorisation result. We never see or store the full card number.",
-          "Correspondence: emails you send us, and messages sent through the bench assistant on this site.",
+          "Correspondence: emails you send us, messages sent through the contact form and the bench assistant, and client stories you submit, with the email address you give for confirming them.",
           "Technical data: IP address, browser type and pages visited, collected in aggregate for security and to keep the site working.",
         ],
       },
@@ -55,6 +58,8 @@ export const policies: Record<PolicySlug, Policy> = {
           "To take, fulfil and deliver your orders, and to tie a shipment to the lot it contained. This is contractual necessity.",
           "To keep lot traceability records, so a certificate can be matched to a buyer years later. This is a legitimate interest and, for some jurisdictions, a legal obligation.",
           "To send lot release notes, if and only if you asked for them. This is consent, and you can withdraw it from any email in one click.",
+          "To send a single email when a sequence you joined a waitlist for is released or back in stock. This is consent, and leaving the waitlist withdraws it.",
+          "To publish a client story, only after confirming it with you and only with the details you agreed to. The email address you give is used to confirm the story and is never published.",
           "To meet tax, accounting and export-control obligations.",
         ],
       },
@@ -71,6 +76,8 @@ export const policies: Record<PolicySlug, Policy> = {
           "Accounting records: as required by law in the jurisdiction of sale.",
           "Marketing consent and mailing list membership: until you unsubscribe, then a suppression record so we do not add you back.",
           "Correspondence: three years, unless it forms part of an order record.",
+          "Profile photos, favorites, waitlists and saved addresses: until you remove them or close the account.",
+          "Client stories: until you ask for a story to be taken down, and a record of the request after that.",
         ],
       },
       { t: "h2", text: "Your rights" },
@@ -134,7 +141,29 @@ export const policies: Record<PolicySlug, Policy> = {
           "Prices are per vial in US dollars and exclude tax, duties and shipping, which are shown before you pay.",
           "We may correct obvious pricing errors before dispatch. If a price was wrong we will tell you and let you confirm or cancel.",
           "Payment is taken at the point of order. Institutional accounts may be offered net-30 terms in writing.",
+          "Where sequences are sold together as a stack, the saving applies to each complete set on the same plan. The sequences remain separate items, each with its own lot and certificate.",
         ],
+      },
+      { t: "h2", text: "Accounts" },
+      {
+        t: "p",
+        text: "You are responsible for keeping your password to yourself and for what is ordered from your account. A device you sign in on with “keep me signed in” stays signed in for ninety days from your last visit; sign out on any device you share, and change your password if you think someone else has used it. Changing it can sign every other device out.",
+      },
+      { t: "h2", text: "Standing orders" },
+      {
+        t: "list",
+        items: [
+          "A monthly standing order is a series of separate orders, each made under these terms. The first ships with the order that opened it; each later one is dispatched on the first Monday, Tuesday or Wednesday of the month that you chose.",
+          "Each dispatch ships the lot current at the time, with that lot's own certificate. The lot number will change from one month to the next.",
+          "You can skip a month, pause, change the quantity or dispatch day, or cancel, from your account at any time before a dispatch. Cancelling ends future dispatches and does not affect anything already shipped.",
+          "If a sequence is out of stock on a dispatch day, that dispatch waits for the next lot rather than substituting anything else.",
+          "The same research-use restriction applies to every dispatch. We may cancel a standing order on the same grounds as any other order, and will refund anything charged for a dispatch that has not shipped.",
+        ],
+      },
+      { t: "h2", text: "Waitlists" },
+      {
+        t: "p",
+        text: "Joining a waitlist for a sequence that is out of stock or not yet released reserves nothing and is not an order. We send one email when a lot is released or back in stock, and you can leave the waitlist at any time.",
       },
       { t: "h2", text: "Shipping, title and risk" },
       {
@@ -170,6 +199,11 @@ export const policies: Record<PolicySlug, Policy> = {
         t: "p",
         text: "You are responsible for complying with the laws that apply where you are. Some of these materials are controlled or prohibited in some jurisdictions. We will not falsify a customs declaration, understate a value, or describe the contents of a shipment as anything other than what they are.",
       },
+      { t: "h2", text: "Client stories" },
+      {
+        t: "p",
+        text: "If you submit a story about your research, you confirm that it is your own work in a laboratory setting and that it describes no use in people or animals. You let us publish it, with the name and details you gave, on this site; you keep ownership of it and can ask us to take it down at any time. We publish only after confirming a story with its author, we may edit for length, and we do not publish anything that describes dosing, treatment or health outcomes.",
+      },
       { t: "h2", text: "Governing law and contact" },
       {
         t: "p",
@@ -183,7 +217,7 @@ export const policies: Record<PolicySlug, Policy> = {
     title: "Cookie policy",
     eyebrow: "Legal — what this site stores on your device",
     standfirst:
-      "A short list, because it is a short list. No advertising cookies, no third-party trackers, and nothing that follows you off this site.",
+      "A short list, because it is a short list. Two cookies, no advertising, no third-party trackers, and nothing that follows you off this site.",
     updated: "2026-09-14",
     body: [
       {
@@ -194,25 +228,18 @@ export const policies: Record<PolicySlug, Policy> = {
       {
         t: "list",
         items: [
-          "rs_session — keeps your cart and sign-in state together across pages. Expires when you close the browser.",
-          "rs_csrf — a security token that stops another site submitting forms as you. Expires with the session.",
+          "rs_session — keeps you signed in. If you tick “keep me signed in”, it lasts ninety days from your last visit and renews each time you come back; if you do not, it ends when you close the browser. It holds a random token; the matching record on our side stores only a hash of it.",
+          "rs_visitor — an anonymous identifier, set the first time you favorite a sequence, join a waitlist or add something to the cart without signing in, so those choices stay with this browser. It is not set by simply visiting. It expires after twelve months, and what it holds moves into your account when you sign in.",
         ],
       },
       {
         t: "p",
-        text: "These cannot be switched off without breaking checkout, so they are set without asking. They hold no personal data beyond an opaque identifier.",
-      },
-      { t: "h2", text: "Preferences" },
-      {
-        t: "list",
-        items: [
-          "rs_prefs — remembers small choices you make, such as a catalogue sort order or a dismissed notice. Expires after 12 months.",
-        ],
+        text: "Both are set only when you do something that needs them, and neither can be switched off without breaking the cart or sign-in. They are httpOnly, which means scripts on the page cannot read them, and they are never sent to anyone else.",
       },
       { t: "h2", text: "Analytics" },
       {
         t: "p",
-        text: "We measure aggregate page views and order funnel steps so we know which parts of the catalogue are hard to use. Analytics cookies are set only if you accept them, they carry no identifier we can tie back to you, and the data is not shared with any advertising network.",
+        text: "This site does not currently set analytics cookies. If that changes, the cookies will be listed here before they are used, they will be set only if you accept them, and the data will not be shared with any advertising network.",
       },
       { t: "h2", text: "What we do not use" },
       {
@@ -226,7 +253,7 @@ export const policies: Record<PolicySlug, Policy> = {
       { t: "h2", text: "Controlling cookies" },
       {
         t: "p",
-        text: "You can change or withdraw your analytics choice at any time from the cookie settings link in the footer. Every browser also lets you block or delete cookies for a site; if you block the strictly necessary ones, the cart and checkout will not work, which is a limitation of how carts work rather than a position we are taking.",
+        text: "Every browser lets you block or delete cookies for a site. If you block the two above, the cart, favorites and sign-in will not work, which is a limitation of how those features work rather than a position we are taking. Signing out deletes rs_session straight away.",
       },
       { t: "h2", text: "Changes" },
       {

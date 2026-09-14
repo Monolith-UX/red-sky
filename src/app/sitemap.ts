@@ -20,6 +20,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: BASE, lastModified: newestLot, changeFrequency: "weekly", priority: 1 },
     { url: `${BASE}/catalog`, lastModified: newestLot, changeFrequency: "weekly", priority: 0.9 },
     { url: `${BASE}/blog`, lastModified: newestPost, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE}/about`, changeFrequency: "yearly", priority: 0.6 },
+    { url: `${BASE}/testing`, changeFrequency: "yearly", priority: 0.7 },
+    { url: `${BASE}/handling`, changeFrequency: "yearly", priority: 0.7 },
+    { url: `${BASE}/certificates`, lastModified: newestLot, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE}/stories`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE}/contact`, changeFrequency: "yearly", priority: 0.5 },
     ...catalogue.map((item) => ({
       url: `${BASE}/catalog/${item.slug}`,

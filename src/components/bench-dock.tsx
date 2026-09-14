@@ -1,82 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { CHIPS, answerFor, type Reply } from "@/lib/assistant";
 
 /* ─────────────────────────────────────────────────────────────
-   The bench assistant answers from the site's own material.
-   Dosing, medical and veterinary questions are refused by design —
-   everything here is sold for in-vitro research only.
+   The bench assistant answers from the catalogue itself — see
+   lib/assistant.ts. Dosing, medical and veterinary questions are
+   refused by design; everything here is sold for in-vitro research.
    ───────────────────────────────────────────────────────────── */
 
-type Topic = { id: string; chip: string; match: RegExp; answer: string };
-
-const REFUSAL: Topic = {
-  id: "clinical",
-  chip: "",
-  match:
-    /\b(dose|dosage|dosing|inject|injection|mg\/kg|protocol for me|how much should|take it|cycle|human|myself|my body|side effect|safe to use|treat|cure|therapy|prescri)/i,
-  answer:
-    "I can't help with that one. Everything Red Sky sells is for in-vitro laboratory research — we don't give dosing, medical or veterinary guidance, and nothing here is a drug. For handling, reconstitution or solubility questions, our technical team answers at lab@redskybio.com within a business day.",
-};
-
-const TOPICS: Topic[] = [
-  {
-    id: "coa",
-    chip: "Where are the certificates?",
-    match: /\b(coa|certificate|chromatogram|trace|hplc report|paperwork|document)/i,
-    answer:
-      "Every lot page carries its own HPLC trace, the ESI-MS identity result and the initials of the operator who ran it. You can also look a lot up directly by number — RS-2601-B is the BPC-157 currently shipping. Certificates go up the day they come back from the lab.",
-  },
-  {
-    id: "purity",
-    chip: "What is the purity floor?",
-    match: /\b(purity|pure|99|assay|grade|quality|impurit)/i,
-    answer:
-      "99% area purity by reverse-phase HPLC at 214 nm, measured on every lot. A lot that misses the floor is destroyed rather than discounted. For reference, lot RS-2601-B assayed at 99.47% and GHK-Cu lot RS-2604-C at 99.61%.",
-  },
-  {
-    id: "shipping",
-    chip: "How do you ship?",
-    match: /\b(ship|shipping|deliver|courier|cold chain|freight|order|arrive|track)/i,
-    answer:
-      "Vials leave the freezer at −20 °C and travel on gel packs with a temperature logger in the box, so you can read the whole journey before you open it. Orders placed before 14:00 ET ship the same business day. We have run 412 shipments this year without a chain break.",
-  },
-  {
-    id: "storage",
-    chip: "How should I store it?",
-    match: /\b(stor|freezer|fridge|shelf life|expire|stability|reconstitut|lyophil|handle)/i,
-    answer:
-      "Lyophilized vials hold at −20 °C, sealed and out of light. Bring a vial to room temperature before you break the seal so nothing condenses inside it. Reconstitution guidance for each sequence sits on its lot page.",
-  },
-  {
-    id: "bulk",
-    chip: "Do you quote bulk?",
-    match: /\b(bulk|quantity|wholesale|custom|synthesis|gram|quote|price|cost|invoice|account)/i,
-    answer:
-      "Yes. Bulk quantities and custom synthesis are quoted within one business day — send the sequence, the scale and the purity you need to lab@redskybio.com. Institutional accounts can be set up with net-30 terms.",
-  },
-  {
-    id: "catalog",
-    chip: "",
-    match: /\b(catalog|carry|stock|available|bpc|tb-?500|ghk|ipamorelin|cjc|semax|sequence)/i,
-    answer:
-      "41 sequences are in the catalog. The six moving fastest right now are BPC-157, TB-500, GHK-Cu, Ipamorelin, CJC-1295 without DAC, and Semax — all in stock with current lots. Scroll up to the catalog to see purities and fills.",
-  },
-];
-
-const FALLBACK =
-  "I can answer on lots, certificates, purity, shipping, storage and bulk quotes. For anything outside that, the technical team replies at lab@redskybio.com within a business day.";
-
-function answerFor(text: string) {
-  if (REFUSAL.match.test(text)) return REFUSAL.answer;
-  return TOPICS.find((t) => t.match.test(text))?.answer ?? FALLBACK;
-}
-
-type Message = { from: "bot" | "you"; text: string };
+type Message = { from: "bot" | "you"; text: string; link?: Reply["link"] };
 
 const OPENER: Message = {
   from: "bot",
-  text: "Ask me about a lot, a certificate, purity, or how we ship. I answer from the same data that ships with the vial.",
+  text: "Ask me about a lot, a certificate, purity, monthly orders or how we ship. I answer from the same data that ships with the vial.",
 };
 
 export function BenchDock() {
@@ -119,7 +57,7 @@ export function BenchDock() {
     setMessages((m) => [...m, { from: "you", text: q }]);
     setDraft("");
     window.setTimeout(
-      () => setMessages((m) => [...m, { from: "bot", text: answerFor(q) }]),
+      () => setMessages((m) => [...m, { from: "bot", ...answerFor(q) }]),
       420,
     );
   }
@@ -130,7 +68,7 @@ export function BenchDock() {
     document.getElementById("main")?.focus({ preventScroll: true });
   }
 
-  const chips = TOPICS.filter((t) => t.chip);
+  const chips = CHIPS;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex justify-end">
@@ -177,6 +115,18 @@ export function BenchDock() {
                     <p className="max-w-[92%] text-[0.875rem] leading-relaxed text-pretty">
                       <span className="visually-hidden">Assistant: </span>
                       {m.text}
+                      {m.link && (
+                        <Link
+                          href={m.link.href}
+                          onClick={() => setOpen(false)}
+                          className="mt-2 flex w-fit items-center gap-2 font-medium decoration-sun underline-offset-4"
+                        >
+                          {m.link.label}
+                          <svg width="14" height="9" viewBox="0 0 16 10" fill="none" aria-hidden="true">
+                            <path d="M0 5h14M10 1l4 4-4 4" stroke="currentColor" strokeWidth="1.3" />
+                          </svg>
+                        </Link>
+                      )}
                     </p>
                   </div>
                 ) : (
@@ -194,14 +144,14 @@ export function BenchDock() {
             {messages.length <= 1 && (
               <div className="shrink-0 px-4 pb-3">
                 <ul role="list" className="flex flex-wrap gap-1.5">
-                  {chips.map((t) => (
-                    <li key={t.id}>
+                  {chips.map((chip) => (
+                    <li key={chip}>
                       <button
                         type="button"
-                        onClick={() => send(t.chip)}
+                        onClick={() => send(chip)}
                         className="border border-hairline px-2.5 py-1.5 text-[0.75rem] text-graphite transition-colors duration-150 hover:border-ink hover:text-ink"
                       >
-                        {t.chip}
+                        {chip}
                       </button>
                     </li>
                   ))}

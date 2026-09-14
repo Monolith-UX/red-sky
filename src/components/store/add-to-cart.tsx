@@ -219,3 +219,41 @@ export function QuantityStepper({
     </div>
   );
 }
+
+/** Several sequences in one press — a stack — each as its own one-time line. */
+export function AddSetButton({
+  slugs,
+  label,
+  className = "btn btn-primary",
+}: {
+  slugs: string[];
+  label: string;
+  className?: string;
+}) {
+  const [state, flash] = useFlash(6000);
+  const [pending, setPending] = useState(false);
+
+  async function add() {
+    setPending(true);
+    let ok = true;
+    for (const slug of slugs) {
+      ok = (await changeCart({ op: "add", slug, plan: "once", quantity: 1 })) && ok;
+    }
+    setPending(false);
+    flash(ok ? "added" : "failed");
+  }
+
+  if (state === "added") {
+    return (
+      <Link href="/cart" className={className}>
+        <Check /> In your cart — review it
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={add} disabled={pending} className={`${className} disabled:opacity-60`}>
+      {pending ? "Adding…" : state === "failed" ? "Not added — try again" : label}
+    </button>
+  );
+}

@@ -31,107 +31,112 @@ broadsheet columns. Those are the current defaults, not choices.
 | `on-sun` | `#FAE3E7` | secondary text on the red field — 4.7:1 at the lightest stop |
 | `sun-deep` | `#8E0021` | press state only |
 
-Red appears once or twice per viewport. Never as a texture.
+Red appears once or twice per viewport. Never as a texture. The favorite heart fills
+red; the waitlist bell fills ink, so a card never carries two red marks.
 
 ## Type
 - **Newsreader** (variable serif, optical sizing) — display only, tracked −0.03em.
-  Journal/annual-report register, not fashion-luxury.
 - **Instrument Sans** — body and UI. Slightly narrow neo-grotesk, not Inter.
 - **IBM Plex Mono** — data only: lot numbers, purities, formulas, axis values.
-  Legitimate mono use — this content *is* data.
 
 ## Grid
 12 columns, 1360px measure, 24px gutters. Asymmetric splits throughout (7/5, 5/7).
-A 2-column index rail carries a tracked mono section label and a hairline; content
-runs in columns 3–12. Body copy never exceeds 68ch.
+Body copy never exceeds 68ch. Section labels (`.rail-label`) wrap below 40rem.
 
 ## Signature
 **A hinomaru disc that behaves like an instrument window.** Each hero slide draws a
-different analytical reading straight through it — HPLC trace, mass spectrum, cold-chain
-curve. The line is ink outside the disc and paper-white inside, so the circle reads as
-an aperture rather than a decoration. The disc stays fixed while the reading changes;
-it recurs at 6px as the page's only ornament.
+reading straight through it — HPLC trace, mass spectrum, cold-chain curve. The line is
+ink outside the disc and paper-white inside, so the circle reads as an aperture.
 
-Slides 1-3 are the real triad of research-grade material —
-**purity → identity → integrity** — each read through the window. On the red field
-the disc inverts: paper white, with the trace red inside it and white outside.
-
-Slide 4 is the Wolverine Stack release. It keeps the same slot and the same rhythm
-but swaps the instrument reading for product artwork and the ruler for the stack's
-composition, so the announcement sits inside the system rather than beside it.
+- Homepage slides 1–3: purity → identity → integrity. Slide 4, the Wolverine Stack, is
+  original artwork built from the house's own parts: the two labelled vials standing in
+  the paper disc over a horizon of hairlines (`StackWindow` in `reading.tsx`). The old
+  fan-art image is gone.
+- Catalogue slides are computed from the lots: the lowest purity on the shelf and the
+  newest release each draw **that lot's own trace** through the window; the third
+  announces unreleased sequences.
+- The default avatar is the window at 24–112px, seeded by the account.
+- The 404 page is the window reading a flat baseline.
 
 ## Section headers
 One shape everywhere (`SectionHeader`): eyebrow with a trailing rule in column one,
-heading directly beneath it in the same column, optional note hanging bottom-right
-so the block reads composed rather than centred.
+heading directly beneath it, optional note hanging bottom-right. (A generic design
+checklist bans eyebrows; this system pins them. The brief wins.)
 
 ## Pages
 
 | Route | Ground | Notes |
 |---|---|---|
-| `/` | red masthead → bench | Hero carousel, 4 slides |
-| `/catalog` | red masthead → bench | 24 sequences, filter rail, per-lot trace on every card |
-| `/catalog/[slug]` | bench + paper panels | 24 product pages, certificate of analysis, FAQs |
-| `/blog` | red masthead → bench | Card grid, featured entry spans two columns |
-| `/blog/[slug]` | paper sheet | 11 entries, sticky contents rail, FAQs |
-| `/privacy` `/terms` `/cookie-policy` `/accessibility` | paper sheet | Sticky contents rail |
+| `/` | red carousel → bench | 4 slides; stack slide has "Add the stack" |
+| `/about` `/testing` `/handling` `/certificates` `/contact` `/stories` | red masthead → bench | content from the journal, terms and catalogue — nothing new claimed |
+| `/catalog` | red carousel → bench | 3 computed slides, 26 sequences, filter rail |
+| `/catalog/[slug]` | bench + paper | in stock, out of stock, or upcoming (no invented data) |
+| `/blog` | red masthead → bench | nav label is "Blog"; the pages still call it the Journal |
+| `/blog/[slug]` `/privacy` `/terms` `/cookie-policy` `/accessibility` | paper sheet | sticky rail on desktop, collapsed jump-list on mobile |
+| `/account` `/cart` | paper masthead → bench | dynamic; noindex |
+| `/sitemap` | paper sheet | inventory-style; `/sitemap.xml` and `/robots.txt` alongside |
+| `/stories/review` | paper | moderators only (`RED_SKY_MODERATORS`) |
 
-**Ground rule:** index and marketing surfaces open on the red field. Reading
-surfaces — journal entries and policies — are paper sheets with no red masthead,
-because a 2000-word read does not want a banner and the shared title morph needs
-matching text colour on both ends.
+**Ground rule:** index and marketing surfaces open on the red field; reading and
+personal surfaces are paper. Routes with a red masthead are listed in `RED_MASTHEAD`
+in `site-header.tsx` so the header's first render is right — add new ones there.
 
 ## Generated imagery
-No photography for editorial, and one placeholder vial for products. Everything
-else is drawn from the lot's own numbers:
+No photography except one: `public/img/vial.webp`, the placeholder vial with its red
+label repainted as blank paper (per-column shading preserved). Every label is then
+printed per lot in SVG (`components/catalog/vial.tsx`) and multiplied into the photo:
+name, formula, the lot's own trace, fill, lot number, research-use line. Unreleased
+sequences print ASSAY PENDING and no trace.
 
-- `lib/trace.ts` seeds a chromatogram from retention time and purity, so every
-  catalogue card draws a different curve and the same lot always draws its own.
-  `sticksFor` and `curveFor` give the mass-spectrum and cold-chain variants.
-- `lib/coa.ts` derives the certificate fields deterministically per lot, with
-  explicit overrides where a sequence has something specific to say.
-- `lib/product-faqs.ts` builds product questions from release data rather than
-  24 hand-written sets, so answers stay true when a lot changes.
-- Journal thumbnails reuse the hero's instrument window, with the reading chosen
-  by category and seeded by entry number.
+- `lib/trace.ts` — `traceFor(retention, purity, frame?)`; the frame only scales, so card
+  traces are byte-identical to before (verified for all lots).
+- `lib/coa.ts`, `lib/product-faqs.ts` — certificates and questions from lot data;
+  upcoming sequences get their own questions.
+- Formulas and **average** molecular weights are real and script-checked
+  (`scripts/verify/chemistry.mjs`; KPV and Epithalon were wrong and are fixed). The
+  `mass` field is average MW, not monoisotopic.
+
+## The personal layer
+- `lib/server/store.ts` — the only persistence: one JSON file in `.data/`, atomic writes,
+  queued updates. Favorites, waitlists, carts, profiles, avatars, placed and standing
+  orders, users, hashed sessions, stories, subscribers, contact messages. **Swap it for
+  a database before any serverless deploy.**
+- `lib/server/auth.ts` — scrypt passwords, 90-day rolling `rs_session`; `rs_visitor`
+  identifies guests; guest data merges into the account at sign-in.
+- `lib/session-client.ts` — the browser's copy of `/api/session`; favorites and cart are
+  optimistic with rollback.
+- `lib/stacks.ts` — stacks are a pricing rule ($14 off each BPC-157 + TB-500 set on the
+  same plan), not a product.
+- Helpers used by server components must not live in `"use client"` files — a function
+  exported from one becomes a client reference and throws on the server.
 
 ## Motion
-Two view-transition patterns, both deliberate:
-- **Shared element** — an entry title morphs from the journal card into the
-  article headline (`share="text-morph"`, so large type does not ghost).
-- **List identity** — filtering the catalogue or the journal rearranges cards
-  rather than cutting to a new set.
-
-Deliberately not added: directional page slides. They would have to wrap the
-page and would sit outside the title morph, and React does not fire a nested
-shared element when the parent mounts as one unit. One good transition beats two
-that fight.
+One authored moment: the trace draws itself (~1.1s, stroke-dashoffset). Two view
+transitions: title `text-morph` (journal card → article) and list identity on both grids.
+Everything else is state feedback under 180ms (the heart's fill pop is 180ms).
+`prefers-reduced-motion` kills the draw, autoplay and smooth scrolling.
 
 ## Open items
-- **`public/img/wolverine-stack.jpg` is not cleared for commercial use.** It is fan
-  art of a Marvel-owned character and still carries the original artist's watermark.
-  Swap it for licensed or original artwork before launch — it is referenced once, in
-  `src/lib/content.ts` under the `stack` slide's `src`.
-- Testimonials are placeholder copy attributed to generic roles, not real customers.
-- **The four policy pages are drafts, not legal advice**, and have not been
-  reviewed by counsel. The research-use restriction in `/terms` is the one to
-  get a lawyer onto first.
-- `public/img/vial-placeholder.jpg` is a rendered stand-in used for all 24
-  products; its label reads BPC-157 and 10 mL regardless of the sequence.
-- Lots, purities, prices and dates are sample data. Molecular formulas,
-  monoisotopic masses and the sequences on certificates are real.
-- The bench assistant answers from a local keyword map in `src/components/bench-dock.tsx`.
-  It refuses dosing, medical and veterinary questions by design; keep that refusal in
-  place if you wire it to a real model.
-- CSS tokens still read `sun` / `sun-field` / `on-sun`. They name the red disc mark,
-  which survived the rename to Red Sky, so they were left alone.
+**Blocking launch**
+- Payments are not connected; checkout records orders and says so on the page.
+- No email provider: waitlist notices, password resets, contact forwarding, story
+  confirmation and newsletter double opt-in are all stubs. Pages say messages are stored.
+- `.data/` JSON store will not persist on serverless hosting.
+- Lots, purities, prices, dates and the 412-shipments figure are sample data.
+- Policy pages are drafts, updated to describe the site truthfully; not reviewed by counsel.
 
-## Motion
-One authored moment: the trace draws itself on load and on each slide change
-(~1.1s, stroke-dashoffset). Everything else is state feedback under 180ms.
-`prefers-reduced-motion` kills the draw and the auto-advance.
+**For counsel, specifically**
+- Recurring monthly shipments of research-use-only products to individuals.
+- The "Wolverine Stack" name: trademark exposure, and an implied healing claim.
+- Class names that describe effects in the body ("Repair and recovery", "Cognitive",
+  "Metabolic", "Longevity").
+- The research-use and 21+ attestations are clickwrap at sign-up and checkout — enough?
+- Client stories: the research-only rule, flagging and moderation.
 
-## Quality floor
-Carousel: pause/play control, pauses on hover and focus, arrow-key support, correct
-`aria-roledescription` / `aria-live`. Contrast computed, not eyeballed. 320px up.
-Visible focus ring. 44px targets. Skip link.
+**Product decisions**
+- Real testimonials need consent; unverified ones never render.
+- Client stories publish only via moderation. Set `RED_SKY_MODERATORS` to see the queue.
+- Image generation access was denied this session; real product photography would
+  replace the labelled placeholder.
+- The bench assistant answers from catalogue data (`lib/assistant.ts`); if a model is
+  wired in, keep the refusal first.

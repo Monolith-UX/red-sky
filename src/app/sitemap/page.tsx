@@ -11,8 +11,12 @@ export const metadata: Metadata = {
 
 const SITE = [
   { label: "Home", href: "/" },
+  { label: "About Us", href: "/about" },
   { label: "Catalogue", href: "/catalog" },
-  { label: "How every lot is tested", href: "/#method" },
+  { label: "Testing", href: "/testing" },
+  { label: "Handling", href: "/handling" },
+  { label: "Certificates", href: "/certificates" },
+  { label: "Client Stories", href: "/stories" },
   { label: "Blog", href: "/blog" },
   { label: "Contact", href: "/contact" },
 ];

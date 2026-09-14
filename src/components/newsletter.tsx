@@ -1,24 +1,23 @@
 "use client";
 
-import { useRef, useState } from "react";
-
-type State = "idle" | "error" | "done";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { subscribeToReleases, type SubscribeState } from "@/app/actions";
+import { isEmail } from "@/lib/forms";
 
 export function Newsletter() {
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<State>("idle");
+  const [local, setLocal] = useState<"idle" | "error">("idle");
+  const [result, action, pending] = useActionState<SubscribeState, FormData>(subscribeToReleases, {
+    status: "idle",
+  });
   const input = useRef<HTMLInputElement>(null);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const value = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
-      setState("error");
-      input.current?.focus();
-      return;
-    }
-    setState("done");
-  }
+  // Checked here for instant feedback, and again on the server.
+  const state = local === "error" ? "error" : result.status;
+
+  useEffect(() => {
+    if (result.status === "error") input.current?.focus();
+  }, [result]);
 
   return (
     <section
@@ -48,7 +47,18 @@ export function Newsletter() {
               a month, and nothing else.
             </p>
 
-            <form onSubmit={submit} noValidate className="mt-10 max-w-lg">
+            <form
+              action={action}
+              onSubmit={(e) => {
+                if (!isEmail(email.trim())) {
+                  e.preventDefault();
+                  setLocal("error");
+                  input.current?.focus();
+                }
+              }}
+              noValidate
+              className="mt-10 max-w-lg"
+            >
               <label htmlFor="newsletter-email" className="t-label block text-[#8d94a0]">
                 Email address
               </label>
@@ -64,7 +74,7 @@ export function Newsletter() {
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
-                    if (state === "error") setState("idle");
+                    if (local === "error") setLocal("idle");
                   }}
                   aria-invalid={state === "error" || undefined}
                   aria-describedby={
@@ -72,8 +82,12 @@ export function Newsletter() {
                   }
                   className="h-12 min-w-0 flex-1 border border-[#6a7280] bg-transparent px-4 text-[0.9375rem] text-paper transition-colors duration-150 placeholder:text-[#767e8c] focus:border-paper"
                 />
-                <button type="submit" className="btn btn-primary shrink-0">
-                  Sign up
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="btn btn-primary shrink-0 disabled:opacity-60"
+                >
+                  {pending ? "Signing up…" : "Sign up"}
                 </button>
               </div>
 
@@ -88,13 +102,16 @@ export function Newsletter() {
                       <path d="M6.5 3v4" stroke="currentColor" strokeWidth="1.3" />
                       <circle cx="6.5" cy="9.4" r="0.8" fill="currentColor" />
                     </svg>
-                    That address is missing an @ or a domain. Check it and try again.
+                    {(local !== "error" && result.message) ||
+                      "That address is missing an @ or a domain. Check it and try again."}
                   </p>
                 )}
                 {state === "done" && (
                   <p className="flex items-center gap-2 text-[0.8125rem] text-paper">
                     <span className="dot" aria-hidden="true" />
-                    You are on the list. The next release note goes out Thursday.
+                    {result.already
+                      ? "That address is already on the list."
+                      : "You are on the list. Release notes go out roughly twice a month."}
                   </p>
                 )}
               </div>

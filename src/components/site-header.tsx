@@ -11,7 +11,7 @@ import { AccountLink, CartLink, DrawerAccountItem } from "./store/header-control
  * right before any script runs, or every paper page flashes white nav text on
  * a grey ground until the effect below measures the page.
  */
-const RED_MASTHEAD = ["/", "/catalog", "/blog", "/contact"];
+const RED_MASTHEAD = ["/", "/catalog", "/blog", "/contact", "/about", "/testing", "/handling", "/certificates", "/stories"];
 
 export function SiteHeader() {
   const pathname = usePathname();

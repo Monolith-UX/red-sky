@@ -45,3 +45,6 @@ next-env.d.ts
 
 # local stores written by route handlers and server actions in development
 /.data/
+
+# verification artefacts
+/scripts/verify/out/

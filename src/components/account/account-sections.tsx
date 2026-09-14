@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { saveProfile, signOut } from "@/app/account/actions";
+import { changePassword, saveProfile, signOut } from "@/app/account/actions";
 import { ProductCard } from "@/components/catalog/product-card";
-import { Field, FormMessage } from "@/components/forms/fields";
+import { Check, Field, FormMessage, PasswordField } from "@/components/forms/fields";
 import type { Profile } from "@/lib/account";
 import { STOCK_LABEL, catalogue, waitingFor } from "@/lib/catalog";
 import { refreshSession, setWaitlist, useSession } from "@/lib/session-client";
@@ -70,6 +70,32 @@ export function ProfileForm({ profile, signInEmail }: { profile: Profile; signIn
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-2">
         <button type="submit" disabled={pending} className="btn btn-primary disabled:opacity-60">
           {pending ? "Saving…" : "Save details"}
+        </button>
+        <FormMessage error={state.error} message={state.message} />
+      </div>
+    </form>
+  );
+}
+
+export function PasswordForm() {
+  const [state, action, pending] = useActionState(changePassword, {});
+  return (
+    <form action={action} noValidate className="grid gap-5 md:grid-cols-2">
+      <PasswordField label="Current password" name="current" autoComplete="current-password" />
+      <PasswordField
+        label="New password"
+        name="replacement"
+        autoComplete="new-password"
+        note="At least 10 characters."
+      />
+      <div className="md:col-span-2">
+        <Check name="everywhere" defaultChecked>
+          Sign out every other device that is signed in to this account
+        </Check>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-2">
+        <button type="submit" disabled={pending} className="btn btn-ghost disabled:opacity-60">
+          {pending ? "Changing…" : "Change password"}
         </button>
         <FormMessage error={state.error} message={state.message} />
       </div>

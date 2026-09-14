@@ -14,6 +14,7 @@ import {
   type Weekday,
 } from "@/lib/account";
 import { canOrder, getItem, money } from "@/lib/catalog";
+import { savingFor, stackSavings } from "@/lib/stacks";
 
 /** The same rules the Server Action applies, so the row can move before the server answers. */
 function preview(order: StandingOrder, change: OrderChange, today: string): StandingOrder {
@@ -51,7 +52,9 @@ export function StandingOrders({ orders, today }: { orders: StandingOrder[]; tod
   }
 
   const active = orders.filter((o) => o.status === "active");
-  const monthly = active.reduce((sum, o) => sum + (getItem(o.slug)?.price ?? 0) * o.quantity, 0);
+  const monthly =
+    active.reduce((sum, o) => sum + (getItem(o.slug)?.price ?? 0) * o.quantity, 0) -
+    savingFor(stackSavings(active.map((o) => ({ slug: o.slug, plan: "monthly" as const, quantity: o.quantity }))));
   const next = active.map((o) => upcomingDispatch(o, today)).sort()[0];
 
   return (

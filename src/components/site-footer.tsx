@@ -18,16 +18,16 @@ const columns = [
   {
     title: "Verification",
     links: [
-      { label: "Certificates of analysis", href: "/blog/how-to-read-a-coa" },
-      { label: "Testing method", href: "/#method" },
+      { label: "Certificates of analysis", href: "/certificates" },
+      { label: "Testing method", href: "/testing" },
       { label: "Reading a chromatogram", href: "/blog/reading-your-chromatogram" },
-      { label: "Lot lookup", href: "/catalog#browse" },
+      { label: "Client stories", href: "/stories" },
     ],
   },
   {
     title: "Ordering",
     links: [
-      { label: "Shipping and cold chain", href: "/blog/cold-chain-last-mile" },
+      { label: "Handling and cold chain", href: "/handling" },
       { label: "Returns", href: "/terms#returns-and-replacements" },
       { label: "Standing orders", href: "/account#auto-delivery" },
       { label: "Terms", href: "/terms" },
@@ -36,7 +36,7 @@ const columns = [
   {
     title: "Company",
     links: [
-      { label: "About Red Sky", href: "/#attestation" },
+      { label: "About Red Sky", href: "/about" },
       { label: "Journal", href: "/blog" },
       { label: "Contact", href: "/contact" },
       { label: "Your account", href: "/account" },

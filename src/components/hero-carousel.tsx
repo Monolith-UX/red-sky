@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Reading, Ruler, StackWindow } from "./reading";
+import { AddSetButton } from "./store/add-to-cart";
 import { type Slide, stackLots } from "@/lib/content";
 
 const INTERVAL = 7000;
@@ -158,15 +159,24 @@ export function HeroCarousel({ slides, label }: { slides: Slide[]; label: string
             >
               <p className="t-lead lg:mt-10">{slide.body}</p>
               <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:gap-3 md:mt-10">
-                {slide.actions.map((a, i) => (
-                  <Link
-                    key={a.href + a.label}
-                    href={a.href}
-                    className={`btn ${i === 0 ? "btn-primary" : "btn-ghost"}`}
-                  >
-                    {a.label}
-                  </Link>
-                ))}
+                {slide.actions.map((a, i) =>
+                  a.add ? (
+                    <AddSetButton
+                      key={a.label}
+                      slugs={a.add}
+                      label={a.label}
+                      className={`btn ${i === 0 ? "btn-primary" : "btn-ghost"}`}
+                    />
+                  ) : (
+                    <Link
+                      key={a.href + a.label}
+                      href={a.href}
+                      className={`btn ${i === 0 ? "btn-primary" : "btn-ghost"}`}
+                    >
+                      {a.label}
+                    </Link>
+                  ),
+                )}
               </div>
             </div>
           </div>

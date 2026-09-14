@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SessionSync } from "@/components/account/account-sections";
 import { CartView } from "@/components/store/cart-view";
 import { currentUser, readOwner } from "@/lib/server/auth";
-import { getCart } from "@/lib/server/store";
+import { getCart, getProfile } from "@/lib/server/store";
 
 export const metadata: Metadata = {
   title: "Your cart — Red Sky",
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function CartPage() {
   const [user, owner] = await Promise.all([currentUser(), readOwner()]);
-  const cart = await getCart(owner);
+  const [cart, profile] = await Promise.all([getCart(owner), getProfile(user?.id ?? null)]);
 
   return (
     <>
@@ -35,7 +35,7 @@ export default async function CartPage() {
       </section>
 
       <div className="shell py-12 md:py-16">
-        <CartView initial={cart} signedIn={!!user} />
+        <CartView initial={cart} signedIn={!!user} address={profile.address} />
       </div>
     </>
   );

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {
+  PasswordForm,
   ProfileForm,
   SavedGrid,
   SessionSync,
@@ -8,13 +9,21 @@ import {
 } from "@/components/account/account-sections";
 import { GuestCarryover, SignInForm, SignUpForm } from "@/components/account/auth-forms";
 import { AvatarUploader } from "@/components/account/avatar-uploader";
+import { OrderHistory } from "@/components/account/order-history";
 import { StandingOrders } from "@/components/account/standing-orders";
 import { SectionHeader } from "@/components/section-header";
 import { TocAside } from "@/components/toc-aside";
 import { todayIso } from "@/lib/account";
 import { getItem, money, shortDate } from "@/lib/catalog";
 import { currentUser, sessionInfo } from "@/lib/server/auth";
-import { favoriteSnapshot, getOrders, getProfile, waitlistSnapshot } from "@/lib/server/store";
+import {
+  favoriteSnapshot,
+  getOrders,
+  getProfile,
+  placedOrders,
+  waitlistSnapshot,
+} from "@/lib/server/store";
+import { savingFor, stackSavings } from "@/lib/stacks";
 import { seedOf } from "@/lib/server/visitor";
 
 export const metadata: Metadata = {
@@ -37,17 +46,20 @@ export default async function AccountPage({
 
   if (!user) return <SignedOut next={safeNext(next)} />;
 
-  const [profile, favorites, waitlist, orders, session] = await Promise.all([
+  const [profile, favorites, waitlist, orders, placed, session] = await Promise.all([
     getProfile(user.id),
     favoriteSnapshot(user.id),
     waitlistSnapshot(user.id),
     getOrders(user.id),
+    placedOrders(user.id),
     sessionInfo(),
   ]);
 
   const today = todayIso();
   const active = orders.filter((o) => o.status === "active");
-  const monthly = active.reduce((sum, o) => sum + (getItem(o.slug)?.price ?? 0) * o.quantity, 0);
+  const monthly =
+    active.reduce((sum, o) => sum + (getItem(o.slug)?.price ?? 0) * o.quantity, 0) -
+    savingFor(stackSavings(active.map((o) => ({ slug: o.slug, plan: "monthly" as const, quantity: o.quantity }))));
 
   const ledger: [string, string][] = [
     ["Favorites", String(favorites.mine.length)],
@@ -136,6 +148,17 @@ export default async function AccountPage({
               </div>
             </section>
 
+            <section id="orders" aria-labelledby="history-heading" className="scroll-mt-24">
+              <SectionHeader
+                eyebrow="Orders — placed from this account"
+                heading="Everything you have ordered."
+                headingId="history-heading"
+              />
+              <div className="mt-10">
+                <OrderHistory orders={placed} />
+              </div>
+            </section>
+
             <section id="waitlist" aria-labelledby="waitlist-heading" className="scroll-mt-24">
               <SectionHeader
                 eyebrow="Waitlist — not yet on the shelf"
@@ -157,6 +180,35 @@ export default async function AccountPage({
               <div className="mt-10 max-w-[44rem]">
                 <ProfileForm profile={profile} signInEmail={user.email} />
               </div>
+
+              <div className="mt-14 max-w-[44rem] border-t border-hairline pt-8">
+                <h3 className="t-h3">Delivery address</h3>
+                {profile.address ? (
+                  <address className="t-data mt-4 text-[0.875rem] not-italic leading-relaxed">
+                    {profile.address.recipient}
+                    {profile.address.organisation && <><br />{profile.address.organisation}</>}
+                    <br />
+                    {profile.address.line1}
+                    {profile.address.line2 && `, ${profile.address.line2}`}
+                    <br />
+                    {profile.address.city}, {profile.address.region} {profile.address.postal}
+                    <br />
+                    {profile.address.country}
+                  </address>
+                ) : (
+                  <p className="mt-3 text-[0.9375rem] text-graphite">None saved yet.</p>
+                )}
+                <p className="mt-3 text-[0.8125rem] text-graphite">
+                  Saved from checkout, and changed there too — standing orders ship to the address on the order that opened them.
+                </p>
+              </div>
+
+              <div className="mt-14 max-w-[44rem] border-t border-hairline pt-8">
+                <h3 className="t-h3">Password</h3>
+                <div className="mt-6">
+                  <PasswordForm />
+                </div>
+              </div>
             </section>
           </div>
 
@@ -166,6 +218,7 @@ export default async function AccountPage({
               items={[
                 { id: "favorites", label: "Favorites" },
                 { id: "auto-delivery", label: "Auto-delivery" },
+                { id: "orders", label: "Orders" },
                 { id: "waitlist", label: "Waitlist" },
                 { id: "profile", label: "Profile" },
               ]}

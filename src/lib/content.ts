@@ -9,7 +9,8 @@ type SlideBase = {
   metric: string;
   metricLabel: string;
   readingCaption: string;
-  actions: { label: string; href: string }[];
+  /** A link, or — when `add` lists sequences — a button that puts them in the cart. */
+  actions: { label: string; href: string; add?: string[] }[];
 };
 
 /**
@@ -95,8 +96,8 @@ export const slides: Slide[] = [
     lots: ["bpc-157", "tb-500"],
     alt: "The two vials of the Wolverine Stack, BPC-157 lot RS-2601-B and TB-500 lot RS-2559-A, standing in the Red Sky disc.",
     actions: [
-      { label: "Shop BPC-157", href: "/catalog/bpc-157" },
-      { label: "Shop TB-500", href: "/catalog/tb-500" },
+      { label: "Add the stack · $96.00", href: "/cart", add: ["bpc-157", "tb-500"] },
+      { label: "Both certificates", href: "/certificates" },
     ],
   },
 ];
@@ -130,7 +131,7 @@ export const catalogSlides: Slide[] = [
     rulerMarks: ["0", "8", "16", "24 min"],
     actions: [
       { label: `Browse all ${catalogue.length}`, href: "#browse" },
-      { label: "How every lot is tested", href: "/#method" },
+      { label: "How every lot is tested", href: "/testing" },
     ],
   },
   {
@@ -256,15 +257,13 @@ export const verification = [
 
 export type NavItem = { label: string; href: string; match?: string };
 
-/**
- * One destination per label. "Testing" and "Handling" both used to point at
- * the method section; handling now goes to the blog's own handling notes.
- */
+/** One destination per label, in the order the header reads them. */
 export const nav: NavItem[] = [
+  { label: "About Us", href: "/about", match: "/about" },
   { label: "Catalog", href: "/catalog", match: "/catalog" },
-  { label: "Testing", href: "/#method" },
-  { label: "Handling", href: "/blog?category=handling" },
+  { label: "Testing", href: "/testing", match: "/testing" },
+  { label: "Handling", href: "/handling", match: "/handling" },
+  { label: "Client Stories", href: "/stories", match: "/stories" },
   { label: "Blog", href: "/blog", match: "/blog" },
-  { label: "About Us", href: "/#attestation" },
   { label: "Contact", href: "/contact", match: "/contact" },
 ];

@@ -5,11 +5,36 @@
 
 export type AvatarType = "image/png" | "image/jpeg" | "image/webp";
 
+export type Address = {
+  recipient: string;
+  organisation: string;
+  line1: string;
+  line2: string;
+  city: string;
+  region: string;
+  postal: string;
+  country: string;
+  phone: string;
+};
+
+export const ADDRESS_FIELDS: { key: keyof Address; label: string; required: boolean; autoComplete: string; max: number }[] = [
+  { key: "recipient", label: "Recipient in the building", required: true, autoComplete: "name", max: 80 },
+  { key: "organisation", label: "Organisation or lab", required: false, autoComplete: "organization", max: 120 },
+  { key: "line1", label: "Street address", required: true, autoComplete: "address-line1", max: 120 },
+  { key: "line2", label: "Building, floor, room", required: false, autoComplete: "address-line2", max: 120 },
+  { key: "city", label: "City", required: true, autoComplete: "address-level2", max: 80 },
+  { key: "region", label: "State or region", required: true, autoComplete: "address-level1", max: 80 },
+  { key: "postal", label: "Postal code", required: true, autoComplete: "postal-code", max: 16 },
+  { key: "country", label: "Country", required: true, autoComplete: "country-name", max: 60 },
+  { key: "phone", label: "Phone for the courier", required: false, autoComplete: "tel", max: 30 },
+];
+
 export type Profile = {
   name: string;
   organisation: string;
   email: string;
   avatar: { type: AvatarType; version: number } | null;
+  address: Address | null;
 };
 
 export const EMPTY_PROFILE: Profile = {
@@ -17,6 +42,7 @@ export const EMPTY_PROFILE: Profile = {
   organisation: "",
   email: "",
   avatar: null,
+  address: null,
 };
 
 /** Monday to Wednesday only, so no box sits in a depot over a weekend. */
@@ -78,6 +104,9 @@ export type PlacedOrder = {
   /** Dispatch day chosen for the monthly lines, if there were any. */
   weekday: Weekday | null;
   standing: string[];
+  /** Prices as they were when the order was placed, not as they are now. */
+  totals?: { once: number; monthly: number; saving: number; today: number };
+  address?: Address;
 };
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);

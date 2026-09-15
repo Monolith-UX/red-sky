@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { LotForm, type LotDefaults } from "@/components/admin/lot-form";
 import { StaffOnly } from "@/components/admin/staff-only";
-import { classLabel, seedCatalogue } from "@/lib/catalog";
+import { classLabel } from "@/lib/catalog";
 import { sequenceFor } from "@/lib/coa";
 import { staffTime } from "@/lib/lots";
-import { currentAdmin } from "@/lib/server/admin";
+import { currentAdmin, liveProducts } from "@/lib/server/admin";
 import { currentUser } from "@/lib/server/auth";
 import { getLots } from "@/lib/server/store";
 
@@ -20,7 +20,7 @@ export default async function EditLot({ params }: { params: Promise<{ slug: stri
   if (!(await currentUser())) redirect(`/account?next=/admin/lots/${slug}`);
   if (!(await currentAdmin())) return <StaffOnly />;
 
-  const seed = seedCatalogue.find((c) => c.slug === slug);
+  const seed = (await liveProducts()).find((c) => c.slug === slug);
   if (!seed) notFound();
   const row = (await getLots())[slug];
 
@@ -59,7 +59,7 @@ export default async function EditLot({ params }: { params: Promise<{ slug: stri
           <h1 className="t-display mt-7">{seed.name}</h1>
           <p className="t-data mt-4 text-[0.875rem] text-graphite">
             {seed.formula} · {seed.mass} Da average (theoretical)
-            {sequenceFor(slug) && ` · ${sequenceFor(slug)}`}
+            {sequenceFor(seed) && ` · ${sequenceFor(seed)}`}
           </p>
           <p className="mt-5 max-w-[62ch] text-[0.9375rem] leading-relaxed text-graphite">
             {row

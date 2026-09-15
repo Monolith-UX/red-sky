@@ -16,7 +16,7 @@ type SlideBase = {
 /**
  * A slide reads an instrument through the window, or — for a release — shows
  * the lots themselves standing in it. `trace` swaps the drawn reading for a
- * real lot's own chromatogram.
+ * trace drawn from a real lot's own retention and purity.
  */
 export type Slide = SlideBase &
   (
@@ -121,7 +121,7 @@ export const catalogSlides: Slide[] = [
     kind: "reading",
     eyebrow: "Catalogue — every lot on the shelf",
     heading: "Nothing here ships without its trace.",
-    body: "Each card carries the lot number, the area purity and the chromatogram that lot actually produced. Filter by class or availability; the numbers are the ones on the certificate.",
+    body: "Each card carries the lot number, the area purity and a trace drawn from its certificate. Filter by class or availability; the numbers are the ones on the certificate.",
     metric: `${floorLot.purity.toFixed(2)}%`,
     metricLabel: `Lowest purity on the shelf · ${floorLot.name}`,
     reading: "hplc",

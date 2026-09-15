@@ -115,8 +115,8 @@ export function coaFor(item: ReleasedItem): Coa {
     observed: `${observed.toFixed(2)} Da`,
     theoretical: `${theoretical.toFixed(2)} Da`,
     delta: `${Math.abs(observed - theoretical).toFixed(2)} Da`,
-    salt: m?.salt ?? o.salt ?? "Trifluoroacetate",
-    appearance: m?.appearance ?? o.appearance ?? DEFAULT_APPEARANCE,
+    salt: m?.salt ?? item.salt ?? o.salt ?? "Trifluoroacetate",
+    appearance: m?.appearance ?? item.appearance ?? o.appearance ?? DEFAULT_APPEARANCE,
     water: `${(m?.water ?? 2.4 + r(3) * 3.4).toFixed(1)}%`,
     analyst: m?.analyst ?? ANALYSTS[Math.floor(r(4) * ANALYSTS.length)],
     largestImpurity:
@@ -125,10 +125,15 @@ export function coaFor(item: ReleasedItem): Coa {
   };
 }
 
-export const sequenceFor = (slug: string) => OVERRIDES[slug]?.sequence;
+/** What is known about a sample product's sequence, salt and appearance — copied when products are imported. */
+export const knownFacts = (slug: string): Override => OVERRIDES[slug] ?? {};
+
+/** The product's own sequence if staff entered one, else the one known for the sample product. */
+export const sequenceFor = (item: { slug: string; sequence?: string | null }) =>
+  item.sequence ?? OVERRIDES[item.slug]?.sequence;
 
 const DEFAULT_APPEARANCE = "White to off-white lyophilized powder";
 
 /** Known before release, so an announced sequence can print it on its label. */
-export const appearanceFor = (item: { slug: string }) =>
-  (OVERRIDES[item.slug]?.appearance ?? DEFAULT_APPEARANCE).toLowerCase();
+export const appearanceFor = (item: { slug: string; appearance?: string | null }) =>
+  (item.appearance ?? OVERRIDES[item.slug]?.appearance ?? DEFAULT_APPEARANCE).toLowerCase();

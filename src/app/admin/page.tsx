@@ -8,11 +8,11 @@ import { StaffOnly } from "@/components/admin/staff-only";
 import { SectionHeader } from "@/components/section-header";
 import { TocAside } from "@/components/toc-aside";
 import { dayLabel, dispatchDate, todayIso } from "@/lib/account";
-import { STOCK_LABEL, builtLots, getItem, money, seedCatalogue } from "@/lib/catalog";
+import { STOCK_LABEL, builtLots, money, nameOf } from "@/lib/catalog";
 import { TOPICS } from "@/lib/contact";
 import { staffTime } from "@/lib/lots";
 import { shipmentsDue } from "@/lib/shipments";
-import { audit, currentAdmin } from "@/lib/server/admin";
+import { audit, currentAdmin, liveProducts } from "@/lib/server/admin";
 import { currentUser } from "@/lib/server/auth";
 import {
   adminLog,
@@ -51,6 +51,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     storiesWith("pending", "flagged"),
     adminLog(200),
   ]);
+  const products = await liveProducts();
   // Viewing orders and messages is access to personal data, and the privacy policy says it is logged.
   await audit(admin.email, "view", { page: "admin" });
 
@@ -77,10 +78,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 Lots and certificates, orders to pack, messages to answer. Every visit and change here
                 is logged.
               </p>
+              <nav aria-label="Staff pages" className="mt-8 flex flex-wrap gap-x-4 gap-y-3">
+                <Link href="/admin/products" className="btn btn-ghost">
+                  Products and photos
+                </Link>
+                <Link href="/stories/review" className="btn btn-ghost">
+                  Story review
+                </Link>
+              </nav>
             </div>
             <dl className="col-span-12 self-end lg:col-span-4 lg:col-start-9">
               {[
-                ["Saved lots", `${Object.keys(lots).length} of ${seedCatalogue.length}`],
+                ["Saved lots", `${Object.keys(lots).length} of ${products.length}`],
                 ["Waiting to go live", String(waiting)],
                 ["Orders shown", String(orders.length)],
                 ["Active standing orders", String(activeStanding.length)],
@@ -129,7 +138,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     </tr>
                   </thead>
                   <tbody>
-                    {seedCatalogue.map((seed) => {
+                    {products.map((seed) => {
                       const row = lots[seed.slug];
                       const shown = row ?? seed;
                       const live = row && builtLots[seed.slug]?.updated === row.updated;
@@ -199,7 +208,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                         {order.lines.map((l) => (
                           <p key={`${l.slug}-${l.plan}`}>
                             <span className="t-label mr-2 text-graphite">{l.plan === "monthly" ? "Monthly" : "Once"}</span>
-                            {l.quantity} × {getItem(l.slug)?.name ?? l.slug}
+                            {l.quantity} × {nameOf(l.slug)}
                           </p>
                         ))}
                         {order.weekday && (
@@ -252,12 +261,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       <div className="text-[0.9375rem] leading-relaxed">
                         {s.ships.map((o) => (
                           <p key={o.id}>
-                            {o.quantity} × {getItem(o.slug)?.name ?? o.slug}
+                            {o.quantity} × {nameOf(o.slug)}
                           </p>
                         ))}
                         {s.waiting.map((o) => (
                           <p key={o.id} className="text-graphite">
-                            {o.quantity} × {getItem(o.slug)?.name ?? o.slug} — waits for stock
+                            {o.quantity} × {nameOf(o.slug)} — waits for stock
                           </p>
                         ))}
                         {s.ships.length > 0 && (
@@ -311,7 +320,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       {standing.map((s) => (
                         <tr key={s.id} className="border-b border-hairline">
                           <td className="t-data py-3 pr-4 text-[0.8125rem]">{s.status === "active" ? dispatchDate(s.nextDispatch) : "—"}</td>
-                          <td className="py-3 pr-4">{getItem(s.slug)?.name ?? s.slug}</td>
+                          <td className="py-3 pr-4">{nameOf(s.slug)}</td>
                           <td className="t-data py-3 pr-4 text-[0.8125rem]">{s.quantity}</td>
                           <td className="py-3 pr-4">{s.status === "active" ? "Active" : "Paused"}</td>
                           <td className="break-all py-3 text-[0.8125rem]">{s.email ?? "unknown"}</td>

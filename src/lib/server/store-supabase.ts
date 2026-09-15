@@ -14,6 +14,7 @@ import {
 import type { Story } from "@/lib/stories";
 import type * as FileStore from "./store-file";
 import type { LotRecord } from "@/lib/lots";
+import type { ImageType, ProductImage, ProductRecord } from "@/lib/products";
 import type {
   AdminLogEntry,
   AdminOrder,
@@ -629,6 +630,90 @@ async function emailsFor(owners: string[]) {
   return { email, closed };
 }
 
+/* ── Products ──────────────────────────────────────────────── */
+
+type ProductRow = Omit<ProductRecord, "updatedBy" | "price" | "retention" | "purity"> & {
+  updated_by: string;
+  price: number | string;
+  retention: number | string;
+  purity: number | string | null;
+};
+
+const toProduct = (r: ProductRow): ProductRecord => ({
+  ...r,
+  price: Number(r.price),
+  retention: Number(r.retention),
+  purity: r.purity === null ? null : Number(r.purity),
+  images: r.images ?? [],
+  updated: iso(r.updated)!,
+  updatedBy: r.updated_by,
+});
+
+const fromProduct = ({ updatedBy, ...p }: Omit<ProductRecord, "updated">) => ({
+  ...p,
+  updated_by: updatedBy,
+  updated: new Date().toISOString(),
+});
+
+async function getProducts(): Promise<Record<string, ProductRecord>> {
+  const res = await db().from("products").select();
+  // Before the products migration is run the table does not exist: that reads as "none saved".
+  if (res.error?.code === "PGRST205") return {};
+  const rows = must(res) as ProductRow[];
+  return Object.fromEntries(rows.map((r) => [r.slug, toProduct(r)]));
+}
+
+async function saveProduct(product: Omit<ProductRecord, "updated">) {
+  return toProduct(must(await db().from("products").upsert(fromProduct(product)).select().single()) as ProductRow);
+}
+
+/** Adds products that are not there yet; never overwrites. Returns how many were added. */
+async function importProducts(rows: Omit<ProductRecord, "updated">[]) {
+  const added = must(
+    await db().from("products").upsert(rows.map(fromProduct), { onConflict: "slug", ignoreDuplicates: true }).select("slug"),
+  );
+  return (added ?? []).length;
+}
+
+/** Whether anything that must stay readable refers to this product: an order, a standing order or a story. */
+async function productInUse(slug: string) {
+  const [placed, standing, stories] = await Promise.all([
+    db().from("placed_orders").select("ref").contains("lines", [{ slug }]).limit(1),
+    db().from("standing_orders").select("id").eq("slug", slug).limit(1),
+    db().from("stories").select("id").contains("slugs", [slug]).limit(1),
+  ]);
+  return [placed, standing, stories].some((r) => ((must(r as { data: unknown[] | null; error: { message: string } | null }) ?? []).length > 0));
+}
+
+const PRODUCT_BUCKET = "product-images";
+const IMAGE_EXT: Record<ImageType, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+const productImagePath = (slug: string, img: Pick<ProductImage, "id" | "type">) =>
+  `${slug.replace(/[^a-z0-9-]/g, "")}/${img.id.replace(/[^a-z0-9]/g, "")}.${IMAGE_EXT[img.type]}`;
+
+/** Deletes a product that nothing refers to, with its lot, favorites, waitlist entries and images. */
+async function deleteProduct(slug: string) {
+  const files = must(await db().storage.from(PRODUCT_BUCKET).list(slug.replace(/[^a-z0-9-]/g, "")));
+  if (files?.length) await db().storage.from(PRODUCT_BUCKET).remove(files.map((f) => `${slug}/${f.name}`));
+  must(await db().from("favorites").delete().eq("slug", slug));
+  must(await db().from("waitlist").delete().eq("slug", slug));
+  must(await db().from("lots").delete().eq("slug", slug));
+  must(await db().from("products").delete().eq("slug", slug));
+}
+
+async function saveProductImage(slug: string, img: Pick<ProductImage, "id" | "type">, bytes: Uint8Array) {
+  must(await db().storage.from(PRODUCT_BUCKET).upload(productImagePath(slug, img), bytes, { contentType: img.type, upsert: true }));
+}
+
+async function readProductImage(slug: string, img: Pick<ProductImage, "id" | "type">) {
+  const { data, error } = await db().storage.from(PRODUCT_BUCKET).download(productImagePath(slug, img));
+  if (error || !data) return null;
+  return Buffer.from(await data.arrayBuffer());
+}
+
+async function removeProductImage(slug: string, img: Pick<ProductImage, "id" | "type">) {
+  await db().storage.from(PRODUCT_BUCKET).remove([productImagePath(slug, img)]);
+}
+
 async function allPlacedOrders(limit = 200): Promise<AdminOrder[]> {
   const rows = must(
     await db().from("placed_orders").select().order("placed", { ascending: false }).limit(limit),
@@ -709,6 +794,14 @@ const store = {
   addMessage,
   setStandingAddress,
   recordShipment,
+  getProducts,
+  saveProduct,
+  importProducts,
+  productInUse,
+  deleteProduct,
+  saveProductImage,
+  readProductImage,
+  removeProductImage,
   getLots,
   saveLot,
   deleteLot,

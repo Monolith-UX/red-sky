@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ReviewButtons } from "@/components/stories/review-buttons";
-import { getItem, shortDate } from "@/lib/catalog";
+import { nameOf, shortDate } from "@/lib/catalog";
 import { currentUser } from "@/lib/server/auth";
 import { isModerator } from "@/lib/server/moderation";
 import { storiesWith } from "@/lib/server/store";
@@ -31,7 +31,7 @@ function Entry({ story, published = false }: { story: Story; published?: boolean
       </div>
       <div className="col-span-12 lg:col-span-6">
         <p className="t-label text-graphite">
-          {story.slugs.map((s) => getItem(s)?.name ?? s).join(" + ")}
+          {story.slugs.map((s) => nameOf(s)).join(" + ")}
           {story.lot && ` · lot ${story.lot}`}
         </p>
         <h3 className="t-h3 mt-2">{story.title}</h3>

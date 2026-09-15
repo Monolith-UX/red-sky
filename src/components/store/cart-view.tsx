@@ -16,7 +16,7 @@ import {
   type Plan,
   type Weekday,
 } from "@/lib/account";
-import { type CatalogItem, canOrder, getItem, money, waitingFor } from "@/lib/catalog";
+import { type CatalogItem, canOrder, getItem, money, nameOf, waitingFor } from "@/lib/catalog";
 import { cartCount, changeCart, refreshSession, useSession } from "@/lib/session-client";
 import { STACKS, savingFor, stackSavings } from "@/lib/stacks";
 import { QuantityStepper } from "./add-to-cart";
@@ -433,7 +433,7 @@ function Placed({ placed }: { placed: NonNullable<CheckoutState["placed"]> }) {
   const monthly = placed.lines.filter((l) => l.plan === "monthly");
   const once = placed.lines.filter((l) => l.plan === "once");
   const describe = (ls: CartLine[]) =>
-    ls.map((l) => `${l.quantity} × ${getItem(l.slug)?.name ?? l.slug}`).join(", ");
+    ls.map((l) => `${l.quantity} × ${nameOf(l.slug)}`).join(", ");
 
   return (
     <section aria-labelledby="placed-heading" className="grid12 gap-y-8 border-t border-ink pt-8">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { dayLabel, type PlacedOrder } from "@/lib/account";
-import { getItem, money, shortDate } from "@/lib/catalog";
+import { money, nameOf, shortDate } from "@/lib/catalog";
 
 /** Every order placed from the account, newest first, at the prices it was placed at. */
 export function OrderHistory({ orders }: { orders: PlacedOrder[] }) {
@@ -19,7 +19,7 @@ export function OrderHistory({ orders }: { orders: PlacedOrder[] }) {
         const once = o.lines.filter((l) => l.plan === "once");
         const monthly = o.lines.filter((l) => l.plan === "monthly");
         const describe = (ls: typeof o.lines) =>
-          ls.map((l) => `${l.quantity} × ${getItem(l.slug)?.name ?? l.slug}`).join(", ");
+          ls.map((l) => `${l.quantity} × ${nameOf(l.slug)}`).join(", ");
         return (
           <li key={o.ref} className="grid grid-cols-1 gap-x-6 gap-y-3 border-b border-hairline py-6 md:grid-cols-[12rem_minmax(0,1fr)_auto]">
             <div>

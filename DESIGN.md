@@ -119,6 +119,15 @@ sequences print ASSAY PENDING and no trace.
   marked sample must state every certificate figure — gaps would otherwise be filled with
   generated values (`coa.ts`). A failed pull fails the build, so the live catalogue never
   silently reverts to sample data.
+- Products: `/admin/products` adds, edits, orders, removes (archives) and deletes products,
+  with up to 8 photos each (alt text required; the first is the main one; private
+  `product-images` bucket served by `/api/product-image/[slug]/[id]`). The first visit
+  copies the 26 sample products in; from then on `products.json` (pulled at build time,
+  like lots) is the catalogue. The web address is fixed once saved; the formula's average
+  mass must match the stated mass (0.1 Da). A product any order, standing order or story
+  refers to can only be archived, so history keeps its name (`nameOf`). Products without
+  photos keep the labelled vial; with photos, the product page shows a gallery whose last
+  view is the vial.
 - Email addresses are hidden while `EMAIL_LIVE` is false in `lib/contact.ts` (the domain is
   not registered); every channel goes through the contact form, read in `/admin`.
 - Your data (account page): `/api/account/export` downloads everything the account holds

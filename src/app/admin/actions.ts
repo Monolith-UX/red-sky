@@ -4,11 +4,10 @@ import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { todayIso } from "@/lib/account";
-import { seedCatalogue } from "@/lib/catalog";
 import { clean, isEmail } from "@/lib/forms";
 import { readLotForm } from "@/lib/lots";
 import { advanceFor, shipmentsDue } from "@/lib/shipments";
-import { audit, requireAdmin } from "@/lib/server/admin";
+import { audit, liveProducts, rebuild, requireAdmin } from "@/lib/server/admin";
 import { hashPassword } from "@/lib/server/auth";
 import {
   allStandingOrders,
@@ -24,30 +23,11 @@ import {
 
 export type AdminState = { error?: string; ok?: boolean; message?: string; temporary?: string };
 
-/**
- * The catalogue is built into the site, so a saved lot goes live when the
- * site rebuilds. NETLIFY_BUILD_HOOK is a build hook URL from Netlify (Site
- * configuration → Build & deploy → Build hooks); without it, staff trigger a
- * deploy by hand.
- */
-async function rebuild(): Promise<string> {
-  const hook = process.env.NETLIFY_BUILD_HOOK;
-  if (!hook) return "Saved. It goes live on the next deploy — set NETLIFY_BUILD_HOOK to make that automatic.";
-  try {
-    const res = await fetch(hook, { method: "POST", body: "{}" });
-    return res.ok
-      ? "Saved. The site is rebuilding and the change will be live in about three minutes."
-      : `Saved, but the rebuild did not start (Netlify answered ${res.status}). Trigger a deploy in Netlify.`;
-  } catch {
-    return "Saved, but the rebuild could not be reached. Trigger a deploy in Netlify.";
-  }
-}
-
 const PDF_LIMIT = 4 * 1024 * 1024;
 
 export async function saveLotAction(slug: string, _: AdminState, form: FormData): Promise<AdminState> {
   const admin = await requireAdmin();
-  if (!seedCatalogue.some((c) => c.slug === slug)) return { error: "That sequence is not in the catalogue." };
+  if (!(await liveProducts()).some((c) => c.slug === slug)) return { error: "That product is not in the catalogue." };
 
   const read = readLotForm(slug, form, admin.email);
   if ("error" in read) return { error: read.error };

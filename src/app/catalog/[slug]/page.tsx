@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Faqs } from "@/components/faqs";
 import { LotTrace } from "@/components/catalog/lot-trace";
 import { ProductCard } from "@/components/catalog/product-card";
+import { ProductGallery } from "@/components/catalog/product-gallery";
 import { Vial } from "@/components/catalog/vial";
 import { SectionHeader } from "@/components/section-header";
 import { PurchasePanel } from "@/components/store/add-to-cart";
@@ -77,7 +78,7 @@ export default async function ProductPage({
   const item = getItem(slug);
   if (!item) notFound();
 
-  const sequence = sequenceFor(item.slug);
+  const sequence = sequenceFor(item);
   const faqs = productFaqs(item);
   const appearance = appearanceFor(item);
   const related = catalogue
@@ -189,9 +190,13 @@ export default async function ProductPage({
           {/* Specimen */}
           <div className="col-span-12 lg:col-span-6">
             <div className="relative border border-hairline bg-white">
-              <div className="relative aspect-[4/3] w-full">
-                <Vial item={item} className="absolute inset-0 h-full w-full p-6" />
-              </div>
+              {item.images?.length ? (
+                <ProductGallery item={item} />
+              ) : (
+                <div className="relative aspect-[4/3] w-full">
+                  <Vial item={item} className="absolute inset-0 h-full w-full p-6" />
+                </div>
+              )}
               {item.stock !== "in" && (
                 <span className="t-label absolute left-4 top-4 bg-ink px-2 py-1 text-paper">
                   {STOCK_LABEL[item.stock]}

@@ -8,6 +8,7 @@ import {
   shortDate,
   waitingFor,
 } from "@/lib/catalog";
+import { imagePath } from "@/lib/products";
 import { TRACE_H, TRACE_W, traceFor } from "@/lib/trace";
 import { AddToCartButton } from "@/components/store/add-to-cart";
 import { ProductActions } from "@/components/store/product-actions";
@@ -29,7 +30,17 @@ export function ProductCard({ item }: { item: CatalogItem }) {
 
       {/* The vial */}
       <div className="relative aspect-[5/4] w-full bg-white">
-        <Vial item={item} className="absolute inset-0 h-full w-full p-3" />
+        {item.images?.[0] ? (
+          // eslint-disable-next-line @next/next/no-img-element -- served by our own route, versioned for caching
+          <img
+            src={imagePath(item.slug, item.images[0])}
+            alt={item.images[0].alt}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-contain p-3"
+          />
+        ) : (
+          <Vial item={item} className="absolute inset-0 h-full w-full p-3" />
+        )}
         {item.stock !== "in" && (
           <span className="t-label absolute left-3 top-3 bg-ink px-2 py-1 text-paper">
             {STOCK_LABEL[item.stock]}

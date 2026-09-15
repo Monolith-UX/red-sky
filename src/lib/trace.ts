@@ -1,5 +1,5 @@
 /**
- * Every catalogue card carries its own chromatogram. The trace is derived
+ * Every catalogue card carries its own trace — drawn, not measured. It is derived
  * deterministically from the lot's retention time and purity, so no two
  * sequences draw the same curve and the same sequence always draws its own.
  */

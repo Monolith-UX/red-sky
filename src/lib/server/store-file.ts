@@ -12,6 +12,7 @@ import {
   type StandingOrder,
 } from "@/lib/account";
 import type { LotRecord } from "@/lib/lots";
+import type { ImageType, ProductImage, ProductRecord } from "@/lib/products";
 import type { Story } from "@/lib/stories";
 
 /**
@@ -76,6 +77,8 @@ type Db = {
   lots: Record<string, LotRecord>;
   /** Who did what in /admin — the privacy policy says staff access is logged. */
   adminLog: AdminLogEntry[];
+  /** Products as managed in /admin/products, by slug. */
+  products: Record<string, ProductRecord>;
 };
 
 export type AdminLogEntry = { at: string; actor: string; action: string; detail: Record<string, unknown> };
@@ -106,6 +109,7 @@ const empty = (): Db => ({
   retained: {},
   lots: {},
   adminLog: [],
+  products: {},
 });
 
 async function read(): Promise<Db> {
@@ -665,6 +669,76 @@ export async function readCertificate(lot: string) {
   } catch {
     return null;
   }
+}
+
+/* ── Products ──────────────────────────────────────────────── */
+
+export async function getProducts(): Promise<Record<string, ProductRecord>> {
+  return (await read()).products;
+}
+
+export function saveProduct(product: Omit<ProductRecord, "updated">) {
+  return update((db) => {
+    db.products[product.slug] = { ...product, updated: new Date().toISOString() };
+    return db.products[product.slug];
+  });
+}
+
+/** Adds products that are not there yet; never overwrites. Returns how many were added. */
+export function importProducts(rows: Omit<ProductRecord, "updated">[]) {
+  return update((db) => {
+    let added = 0;
+    for (const row of rows) {
+      if (db.products[row.slug]) continue;
+      db.products[row.slug] = { ...row, updated: new Date().toISOString() };
+      added++;
+    }
+    return added;
+  });
+}
+
+/** Whether anything that must stay readable refers to this product: an order, a standing order or a story. */
+export async function productInUse(slug: string) {
+  const db = await read();
+  return (
+    Object.values(db.placed).some((os) => os.some((o) => o.lines.some((l) => l.slug === slug))) ||
+    Object.values(db.orders).some((os) => os.some((o) => o.slug === slug)) ||
+    db.stories.some((s) => s.slugs.includes(slug))
+  );
+}
+
+const PRODUCT_IMAGES = path.join(DIR, "product-images");
+const IMAGE_EXT: Record<ImageType, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+const productImageFile = (slug: string, img: Pick<ProductImage, "id" | "type">) =>
+  path.join(PRODUCT_IMAGES, slug.replace(/[^a-z0-9-]/g, ""), `${img.id.replace(/[^a-z0-9]/g, "")}.${IMAGE_EXT[img.type]}`);
+
+/** Deletes a product that nothing refers to, with its lot, favorites, waitlist entries and images. */
+export async function deleteProduct(slug: string) {
+  await rm(path.join(PRODUCT_IMAGES, slug.replace(/[^a-z0-9-]/g, "")), { recursive: true, force: true });
+  return update((db) => {
+    delete db.products[slug];
+    delete db.lots[slug];
+    delete db.favorites[slug];
+    delete db.waitlist[slug];
+  });
+}
+
+export async function saveProductImage(slug: string, img: Pick<ProductImage, "id" | "type">, bytes: Uint8Array) {
+  const file = productImageFile(slug, img);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, bytes);
+}
+
+export async function readProductImage(slug: string, img: Pick<ProductImage, "id" | "type">) {
+  try {
+    return await readFile(productImageFile(slug, img));
+  } catch {
+    return null;
+  }
+}
+
+export async function removeProductImage(slug: string, img: Pick<ProductImage, "id" | "type">) {
+  await rm(productImageFile(slug, img), { force: true });
 }
 
 export async function allPlacedOrders(limit = 200): Promise<AdminOrder[]> {

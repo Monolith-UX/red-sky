@@ -7,6 +7,8 @@
 
 import lotRows from "./lots.json";
 import type { LotRecord } from "./lots";
+import productRows from "./products.json";
+import { productToItem, type ProductImage, type ProductRecord } from "./products";
 
 export type StockState = "in" | "low" | "out" | "made-to-order" | "upcoming";
 
@@ -22,6 +24,11 @@ type Base = {
   /** Retention time in minutes — also seeds the trace, so every card differs. */
   retention: number;
   note: string;
+  /** From /admin/products; the sample products in code leave these to coa.ts. */
+  sequence?: string | null;
+  salt?: string | null;
+  appearance?: string | null;
+  images?: ProductImage[];
 };
 
 /** A sequence with at least one released lot, whether or not any is left. */
@@ -528,13 +535,35 @@ function withLot(item: CatalogItem, row: LotRecord | undefined): CatalogItem {
   };
 }
 
-// Written at build time on Netlify by scripts/pull-lots.mjs; `{}` in the repository.
+// Both written at build time on Netlify by scripts/pull-lots.mjs; `{}` in the repository.
 const LOTS = lotRows as Record<string, LotRecord>;
+const PRODUCTS = productRows as Record<string, ProductRecord>;
 
-export const catalogue: CatalogItem[] = SEED.map((item) => withLot(item, LOTS[item.slug]));
+/**
+ * The products the site sells: the saved ones once any exist (in their saved
+ * order, archived ones left out), otherwise the sample products above.
+ */
+const BASE: CatalogItem[] = Object.keys(PRODUCTS).length
+  ? Object.values(PRODUCTS)
+      .filter((p) => !p.archived)
+      .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name))
+      .map(productToItem)
+  : SEED;
 
-/** The sequences as written in code, before any saved lot — for /admin to compare against. */
+export const catalogue: CatalogItem[] = BASE.map((item) => withLot(item, LOTS[item.slug]));
+
+/** The saved products this build was made with, so /admin can tell which saves are live yet. */
+export const builtProducts = PRODUCTS;
+
+/** The sample products written in code — what /admin/products imports the first time. */
 export const seedCatalogue = SEED;
+
+/**
+ * A product's name for records that outlive it — past orders, standing orders,
+ * stories — so an archived product still reads as itself, not as its slug.
+ */
+export const nameOf = (slug: string) =>
+  PRODUCTS[slug]?.name ?? SEED.find((c) => c.slug === slug)?.name ?? slug;
 
 /** The saved lots this build was made with, so /admin can tell which saves are live yet. */
 export const builtLots = LOTS;

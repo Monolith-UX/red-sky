@@ -143,7 +143,7 @@ const TOPICS: Topic[] = [
     reply: () => {
       const orderable = catalogue.filter(canOrder).length;
       return {
-        text: `${catalogue.length} sequences are in the catalogue: ${orderable} can be ordered today and ${catalogue.length - orderable} take a waitlist. Every card shows its lot, its purity and its own chromatogram.`,
+        text: `${catalogue.length} sequences are in the catalogue: ${orderable} can be ordered today and ${catalogue.length - orderable} take a waitlist. Every card shows its lot, its purity and a trace drawn from its certificate.`,
         link: { href: "/catalog", label: "Browse the catalogue" },
       };
     },

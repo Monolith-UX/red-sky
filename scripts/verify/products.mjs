@@ -24,6 +24,7 @@ if (process.env.E2E_STORE === "supabase") {
   sb = createClient(process.env.SUPABASE_URL.trim().replace(/\/(rest\/v1\/?)?$/, ""), process.env.SUPABASE_SECRET_KEY.trim(), { auth: { persistSession: false } });
 }
 const STARTED = new Date().toISOString();
+const SNAPSHOT = sb ? ((await sb.from("products").select()).data ?? []) : [];
 const STAFF = "staff-check@lab.org";
 const TEST = "test-peptide-alpha";
 
@@ -35,6 +36,8 @@ const S = {
   },
   async cleanup(hadProducts) {
     if (!sb) return;
+    // Put back every real product exactly as it was: moving the test product renumbers the order.
+    if (SNAPSHOT.length) await sb.from("products").upsert(SNAPSHOT);
     const files = (await sb.storage.from("product-images").list(TEST)).data ?? [];
     if (files.length) await sb.storage.from("product-images").remove(files.map((f) => `${TEST}/${f.name}`));
     await sb.from("products").delete().eq("slug", TEST);

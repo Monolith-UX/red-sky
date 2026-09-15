@@ -678,7 +678,8 @@ async function importProducts(rows: Omit<ProductRecord, "updated">[]) {
 /** Whether anything that must stay readable refers to this product: an order, a standing order or a story. */
 async function productInUse(slug: string) {
   const [placed, standing, stories] = await Promise.all([
-    db().from("placed_orders").select("ref").contains("lines", [{ slug }]).limit(1),
+    // lines is jsonb: contains() would send an array literal, which Postgres rejects for json.
+    db().from("placed_orders").select("ref").filter("lines", "cs", JSON.stringify([{ slug }])).limit(1),
     db().from("standing_orders").select("id").eq("slug", slug).limit(1),
     db().from("stories").select("id").contains("slugs", [slug]).limit(1),
   ]);

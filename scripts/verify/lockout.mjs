@@ -30,13 +30,15 @@ const plant = [
   admin.from("admin_log").insert({ actor: CANARY, action: "canary" }),
   admin.from("attempts").insert({ key: CANARY }),
   admin.storage.from("avatars").upload(`${CANARY}.png`, new Uint8Array([137, 80, 78, 71]), { contentType: "image/png", upsert: true }),
+  admin.from("products").insert({ slug: CANARY, name: CANARY, formula: "C2H5NO2", mass: "75.07", klass: "repair", note: "canary", stock: "upcoming", price: 1, fill: "1 mg", expected: "2027-01-01", updated_by: CANARY }),
+  admin.storage.from("product-images").upload(`${CANARY}/canary.png`, new Uint8Array([137, 80, 78, 71]), { contentType: "image/png", upsert: true }),
   admin.storage.from("certificates").upload(`${CANARY}.pdf`, new TextEncoder().encode("%PDF-1.4 canary"), { contentType: "application/pdf", upsert: true }),
 ];
 const planted = await Promise.all(plant);
 check("canaries planted with the secret key", planted.every((r) => !r.error), planted.filter((r) => r.error).map(why).join(" | "));
 
 try {
-  const tables = ["users", "sessions", "profiles", "favorites", "waitlist", "carts", "placed_orders", "standing_orders", "retained", "messages", "stories", "subscribers", "attempts", "lots", "admin_log"];
+  const tables = ["users", "sessions", "profiles", "favorites", "waitlist", "carts", "placed_orders", "standing_orders", "retained", "messages", "stories", "subscribers", "attempts", "lots", "admin_log", "products"];
   for (const t of tables) {
     const read = await pub.from(t).select("*").limit(5);
     check(`${t}: public key cannot read`, denied(read), why(read));
@@ -71,8 +73,8 @@ try {
   }
 
   // Uploads use each bucket's allowed type, so a refusal is about permission, not the file.
-  const allowed = { avatars: ["png", "image/png", new Uint8Array([137, 80, 78, 71])], certificates: ["pdf", "application/pdf", new TextEncoder().encode("%PDF-1.4 x")] };
-  for (const [bucket, file] of [["avatars", `${CANARY}.png`], ["certificates", `${CANARY}.pdf`]]) {
+  const allowed = { "product-images": ["png", "image/png", new Uint8Array([137, 80, 78, 71])], avatars: ["png", "image/png", new Uint8Array([137, 80, 78, 71])], certificates: ["pdf", "application/pdf", new TextEncoder().encode("%PDF-1.4 x")] };
+  for (const [bucket, file] of [["avatars", `${CANARY}.png`], ["certificates", `${CANARY}.pdf`], ["product-images", `${CANARY}/canary.png`]]) {
     const list = await pub.storage.from(bucket).list();
     check(`${bucket}: public key cannot list`, denied(list), why(list));
     const dl = await pub.storage.from(bucket).download(file);
@@ -99,6 +101,8 @@ try {
     admin.from("users").delete().like("email", `${CANARY}%`),
     admin.from("stories").delete().like("id", `${CANARY}%`),
     admin.from("lots").delete().like("slug", `${CANARY}%`),
+    admin.from("products").delete().like("slug", `${CANARY}%`),
+    admin.storage.from("product-images").remove([`${CANARY}/canary.png`, `${CANARY}-pub.png`]),
     admin.storage.from("avatars").remove([`${CANARY}.png`, `${CANARY}-pub.png`]),
     admin.storage.from("certificates").remove([`${CANARY}.pdf`, `${CANARY}-pub.pdf`]),
   ]);
